@@ -6,7 +6,8 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { usePendingPurchaseSummary } from "@/hooks/use-requests";
+import { usePeopleMaps } from "@/hooks/use-reference-data";
+import { usePendingPurchaseSummary, useRequests } from "@/hooks/use-requests";
 import { formatQty } from "@/lib/format";
 import type { PendingPurchaseRow } from "@/lib/types";
 
@@ -23,8 +24,13 @@ interface Group {
 
 const PurchasePendingPage = () => {
   const navigate = useNavigate();
+  const { personName } = usePeopleMaps();
   const { data, isLoading, error, refetch } = usePendingPurchaseSummary();
+  const { data: requests } = useRequests({ limit: 500 });
   const [search, setSearch] = useState("");
+
+  const requesterOf = (requestId: string) =>
+    (requests ?? []).find((request) => request.id === requestId)?.requester_id ?? null;
 
   const groups = useMemo(() => {
     const map = new Map<string, Group>();
@@ -128,10 +134,10 @@ const PurchasePendingPage = () => {
                     className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-sm"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium">{row.sector_name}</p>
+                      <p className="font-medium">{row.folio}</p>
                       <p className="text-xs text-muted-foreground">
-                        {row.folio} · aprobado {formatQty(row.approved_qty)} · ya comprado{" "}
-                        {formatQty(row.purchased_qty)}
+                        {personName(requesterOf(row.request_id)) ?? "Solicitante"} · aprobado{" "}
+                        {formatQty(row.approved_qty)} · ya comprado {formatQty(row.purchased_qty)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

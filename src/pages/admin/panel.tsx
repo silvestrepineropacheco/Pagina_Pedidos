@@ -64,7 +64,7 @@ const QueueCard = ({
 };
 
 const AdminPanelPage = () => {
-  const { personName, sectorName } = usePeopleMaps();
+  const { personName } = usePeopleMaps();
   const queues = useAdminQueues();
 
   if (queues.isLoading) return <LoadingState label="Cargando el panel..." />;
@@ -182,8 +182,7 @@ const AdminPanelPage = () => {
                 <div className="min-w-0">
                   <p className="font-medium">{request.folio}</p>
                   <p className="text-xs text-muted-foreground">
-                    {sectorName(request.sector_id)} · {personName(request.requester_id)} · necesaria{" "}
-                    {formatDate(request.needed_by)}
+                    {personName(request.requester_id)} · necesaria {formatDate(request.needed_by)}
                   </p>
                 </div>
                 <StatusBadge status={request.status} />

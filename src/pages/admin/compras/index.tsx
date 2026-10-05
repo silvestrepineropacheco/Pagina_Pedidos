@@ -18,7 +18,7 @@ const PurchasesPage = () => {
     <div className="space-y-4">
       <PageHeader
         title="Compras registradas"
-        description="Cada compra puede incluir artículos de varias solicitudes y sectores."
+        description="Cada compra puede incluir artículos de varias solicitudes."
         actions={
           <Button asChild>
             <Link to="/admin/compras/nueva">

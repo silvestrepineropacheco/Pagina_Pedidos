@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-import { useProfiles, useSectors } from "@/hooks/use-reference-data";
+import { useProfiles } from "@/hooks/use-reference-data";
 import { authorizeProfile, invokeManageUsers, setProfileActive } from "@/lib/api";
 import { roleLabel } from "@/lib/permissions";
 import type { AppRole, Profile } from "@/lib/types";
@@ -34,18 +34,14 @@ interface InviteForm {
   email: string;
   full_name: string;
   role: AppRole;
-  sector_id: string;
 }
 
 const UsersPage = () => {
   const queryClient = useQueryClient();
   const { data: profiles, isLoading, error, refetch } = useProfiles();
-  const { data: sectors } = useSectors();
 
   const [invite, setInvite] = useState<InviteForm | null>(null);
-  const [authorize, setAuthorize] = useState<{ profile: Profile; role: AppRole; sector_id: string } | null>(
-    null,
-  );
+  const [authorize, setAuthorize] = useState<{ profile: Profile; role: AppRole } | null>(null);
   const [temporary, setTemporary] = useState<{ email: string; password: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -55,14 +51,6 @@ const UsersPage = () => {
 
   const handleInvite = async () => {
     if (!invite) return;
-    if (invite.role === "encargado" && !invite.sector_id) {
-      toast({
-        title: "Elegí un sector",
-        description: "Un encargado necesita un sector asignado.",
-        variant: "destructive",
-      });
-      return;
-    }
     setBusy(true);
     try {
       const result = await invokeManageUsers({
@@ -70,7 +58,7 @@ const UsersPage = () => {
         email: invite.email.trim().toLowerCase(),
         full_name: invite.full_name.trim(),
         role: invite.role,
-        sector_id: invite.sector_id || null,
+        sector_id: null,
       });
       await refresh();
       if (result.temporary_password) {
@@ -87,7 +75,7 @@ const UsersPage = () => {
           ? "Crear cuentas desde el panel no está disponible"
           : "No se pudo crear la cuenta",
         description: unavailable
-          ? "Pedile a la persona que se registre desde el link de la aplicación y, cuando aparezca en “Cuentas pendientes”, autorizala acá con su rol y sector."
+          ? "Pedile a la persona que se registre desde el link de la aplicación y, cuando aparezca en “Cuentas pendientes”, autorizala acá con su rol."
           : message || undefined,
         variant: "destructive",
       });
@@ -98,26 +86,14 @@ const UsersPage = () => {
 
   const handleAuthorize = async () => {
     if (!authorize) return;
-    if (authorize.role === "encargado" && !authorize.sector_id) {
-      toast({
-        title: "Elegí un sector",
-        description: "Un encargado necesita un sector asignado.",
-        variant: "destructive",
-      });
-      return;
-    }
     setBusy(true);
     try {
       // Actualizacion directa: la base valida en el servidor que seas el Propietario.
-      await authorizeProfile(
-        authorize.profile.id,
-        authorize.role,
-        authorize.sector_id || null,
-      );
+      await authorizeProfile(authorize.profile.id, authorize.role);
       await refresh();
       toast({
         title: "Cuenta autorizada",
-        description: `${authorize.profile.email} ya puede ingresar con su rol y sector.`,
+        description: `${authorize.profile.email} ya puede ingresar con su rol.`,
       });
       setAuthorize(null);
     } catch (authorizeError) {
@@ -156,9 +132,6 @@ const UsersPage = () => {
       <TableCell className="font-medium">{profile.full_name ?? "—"}</TableCell>
       <TableCell className="text-sm">{profile.email}</TableCell>
       <TableCell>{roleLabel(profile.role)}</TableCell>
-      <TableCell className="text-sm">
-        {sectors?.find((sector) => sector.id === profile.sector_id)?.name ?? "—"}
-      </TableCell>
       <TableCell>
         <ToneBadge tone={profile.active && profile.role !== "pending" ? "success" : "warning"}>
           {profile.active && profile.role !== "pending" ? "Habilitada" : "Sin acceso"}
@@ -173,7 +146,6 @@ const UsersPage = () => {
                 setAuthorize({
                   profile,
                   role: "encargado",
-                  sector_id: profile.sector_id ?? "",
                 })
               }
             >
@@ -197,9 +169,9 @@ const UsersPage = () => {
     <div className="space-y-4">
       <PageHeader
         title="Usuarios, roles y permisos"
-        description="Solo el Propietario puede autorizar cuentas y asignar rol y sector. Nadie obtiene permisos por registrarse."
+        description="Solo el Propietario puede autorizar cuentas y asignar su rol. Nadie obtiene permisos por registrarse."
         actions={
-          <Button onClick={() => setInvite({ email: "", full_name: "", role: "encargado", sector_id: "" })}>
+          <Button onClick={() => setInvite({ email: "", full_name: "", role: "encargado" })}>
             <Plus className="h-4 w-4" />
             Crear cuenta
           </Button>
@@ -210,7 +182,7 @@ const UsersPage = () => {
         <p className="font-medium">Dos formas de dar acceso</p>
         <p className="mt-1">
           1) La persona se registra con el link de la aplicación y queda en “Cuentas pendientes”:
-          autorizala desde acá eligiendo rol y sector. 2) O creá la cuenta directamente con
+          autorizala desde acá eligiendo su rol. 2) O creá la cuenta directamente con
           “Crear cuenta” y pasale la contraseña temporal junto con el link.
         </p>
       </div>
@@ -238,7 +210,6 @@ const UsersPage = () => {
                         <TableHead>Nombre</TableHead>
                         <TableHead>Correo</TableHead>
                         <TableHead>Rol</TableHead>
-                        <TableHead>Sector</TableHead>
                         <TableHead>Acceso</TableHead>
                         <TableHead />
                       </TableRow>
@@ -262,7 +233,6 @@ const UsersPage = () => {
                       <TableHead>Nombre</TableHead>
                       <TableHead>Correo</TableHead>
                       <TableHead>Rol</TableHead>
-                      <TableHead>Sector</TableHead>
                       <TableHead>Acceso</TableHead>
                       <TableHead />
                     </TableRow>
@@ -315,30 +285,7 @@ const UsersPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="encargado">Encargado de sector</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Sector {invite.role === "admin" ? "(opcional)" : ""}</Label>
-                <Select
-                  value={invite.sector_id || "sin_sector"}
-                  onValueChange={(value) =>
-                    setInvite({ ...invite, sector_id: value === "sin_sector" ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Elegí un sector" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sin_sector">Sin sector</SelectItem>
-                    {(sectors ?? [])
-                      .filter((sector) => sector.active)
-                      .map((sector) => (
-                        <SelectItem key={sector.id} value={sector.id}>
-                          {sector.name}
-                        </SelectItem>
-                      ))}
+                    <SelectItem value="encargado">Encargado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -374,28 +321,7 @@ const UsersPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="encargado">Encargado de sector</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Sector</Label>
-                <Select
-                  value={authorize.sector_id || "sin_sector"}
-                  onValueChange={(value) =>
-                    setAuthorize({ ...authorize, sector_id: value === "sin_sector" ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Elegí un sector" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sin_sector">Sin sector</SelectItem>
-                    {(sectors ?? []).map((sector) => (
-                      <SelectItem key={sector.id} value={sector.id}>
-                        {sector.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="encargado">Encargado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -9,9 +9,7 @@ import type { RequestRow } from "@/lib/types";
 
 interface RequestListProps {
   requests: RequestRow[];
-  sectorName: (id?: string | null) => string | null;
   personName: (id?: string | null) => string | null;
-  showSector?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -25,9 +23,7 @@ const Responsible = ({ name }: { name: string | null }) =>
 
 export const RequestList = ({
   requests,
-  sectorName,
   personName,
-  showSector = false,
   emptyTitle = "No hay pedidos para mostrar",
   emptyDescription = "Cuando existan solicitudes con estos criterios las vas a ver acá.",
 }: RequestListProps) => {
@@ -44,7 +40,7 @@ export const RequestList = ({
               <TableHead>Número</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Categoría</TableHead>
-              {showSector ? <TableHead>Sector</TableHead> : null}
+              <TableHead>Solicitante</TableHead>
               <TableHead>Prioridad</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Responsable</TableHead>
@@ -59,9 +55,7 @@ export const RequestList = ({
                   {formatDate(request.submitted_at ?? request.created_at)}
                 </TableCell>
                 <TableCell className="text-sm">{categoryLabel(request.category)}</TableCell>
-                {showSector ? (
-                  <TableCell className="text-sm">{sectorName(request.sector_id) ?? "—"}</TableCell>
-                ) : null}
+                <TableCell className="text-sm">{personName(request.requester_id) ?? "—"}</TableCell>
                 <TableCell>
                   <PriorityBadge priority={request.priority} />
                 </TableCell>
@@ -97,7 +91,8 @@ export const RequestList = ({
               <div className="min-w-0">
                 <p className="font-semibold text-foreground">{request.folio ?? "Sin número"}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDate(request.submitted_at ?? request.created_at)}
+                  {formatDate(request.submitted_at ?? request.created_at)} ·{" "}
+                  {personName(request.requester_id) ?? "Sin solicitante"}
                 </p>
               </div>
               <StatusBadge status={request.status} />
@@ -105,11 +100,6 @@ export const RequestList = ({
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <PriorityBadge priority={request.priority} />
               <span className="text-xs text-muted-foreground">{categoryLabel(request.category)}</span>
-              {showSector ? (
-                <span className="text-xs text-muted-foreground">
-                  · {sectorName(request.sector_id) ?? "Sin sector"}
-                </span>
-              ) : null}
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
               Responsable: {personName(request.assigned_admin_id) ?? "sin asignar"}

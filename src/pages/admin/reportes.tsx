@@ -12,17 +12,17 @@ import { REQUEST_STATUS } from "@/lib/constants";
 import { daysSince, formatCurrency, formatQty } from "@/lib/format";
 
 const ReportsPage = () => {
-  const { sectorName } = usePeopleMaps();
+  const { personName } = usePeopleMaps();
   const { data: requests, isLoading, error, refetch } = useRequests({ limit: 1000 });
   const { data: items } = useQuery({ queryKey: ["all-items"], queryFn: fetchAllRequestItems });
   const { data: purchases } = usePurchases();
 
-  const bySector = useMemo(() => {
+  const byRequester = useMemo(() => {
     const map = new Map<string, { name: string; count: number; approved: number; amount: number }>();
     for (const request of requests ?? []) {
-      const key = request.sector_id;
+      const key = request.requester_id;
       const current = map.get(key) ?? {
-        name: sectorName(key) ?? "Sin sector",
+        name: personName(key) ?? "Sin solicitante",
         count: 0,
         approved: 0,
         amount: 0,
@@ -33,7 +33,7 @@ const ReportsPage = () => {
     for (const item of items ?? []) {
       const request = (requests ?? []).find((entry) => entry.id === item.request_id);
       if (!request) continue;
-      const current = map.get(request.sector_id);
+      const current = map.get(request.requester_id);
       if (!current) continue;
       if (item.item_status !== "rejected" && item.item_status !== "cancelled") {
         current.approved += Number(item.approved_qty);
@@ -41,7 +41,7 @@ const ReportsPage = () => {
       }
     }
     return [...map.values()].sort((a, b) => b.count - a.count);
-  }, [requests, items, sectorName]);
+  }, [requests, items, personName]);
 
   const byStatus = useMemo(() => {
     const map = new Map<string, { label: string; count: number; totalDays: number; aged: number }>();
@@ -99,20 +99,20 @@ const ReportsPage = () => {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-base">Pedidos por sector</CardTitle>
+            <CardTitle className="text-base">Pedidos por solicitante</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Sector</TableHead>
+                  <TableHead>Solicitante</TableHead>
                   <TableHead className="text-right">Pedidos</TableHead>
                   <TableHead className="text-right">Cantidad aprobada</TableHead>
                   <TableHead className="text-right">Estimado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bySector.map((row) => (
+                {byRequester.map((row) => (
                   <TableRow key={row.name}>
                     <TableCell>{row.name}</TableCell>
                     <TableCell className="text-right">{row.count}</TableCell>

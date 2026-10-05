@@ -89,7 +89,7 @@ const LoginPage = () => {
             Solicitudes de insumos, equipamiento y maquinaria
           </h1>
           <p className="max-w-md text-sm text-primary-foreground/80">
-            Centralizá los pedidos de cada sector, evitá compras duplicadas y seguí qué está
+            Centralizá los pedidos de insumos, equipamiento y maquinaria, evitá compras duplicadas y seguí qué está
             pendiente, quién lo gestiona y qué se recibió.
           </p>
         </div>
@@ -107,7 +107,7 @@ const LoginPage = () => {
             <CardDescription>
               {mode === "login"
                 ? "Usá tu correo y contraseña."
-                : "La cuenta queda pendiente hasta que el Propietario te autorice y asigne un sector."}
+                : "La cuenta queda pendiente hasta que el Propietario te autorice y te asigne un rol."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -117,7 +117,7 @@ const LoginPage = () => {
                 <span>
                   La aplicación todavía no tiene Propietario. Creá tu cuenta con el{" "}
                   <strong>código de configuración inicial</strong> para quedar como Propietario y
-                  poder autorizar usuarios, roles y sectores. Sin ese código, la cuenta queda
+                  poder autorizar usuarios y asignar roles. Sin ese código, la cuenta queda
                   pendiente de autorización.
                 </span>
               </div>

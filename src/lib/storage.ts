@@ -13,7 +13,7 @@ const sanitize = (name: string) =>
 /**
  * Carpetas con permisos separados:
  * - requests/{requestId}/...  -> quien puede ver el pedido
- * - purchases/{purchaseId}/... -> solo administradores (una compra puede abarcar varios sectores)
+ * - purchases/{purchaseId}/... -> solo administradores
  * - drafts/{userId}/...       -> adjuntos cargados antes de crear la solicitud
  */
 export const uploadAttachment = async (file: File, folder: string): Promise<string> => {

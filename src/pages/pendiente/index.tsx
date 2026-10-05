@@ -46,7 +46,7 @@ const PendingPage = () => {
           <CardTitle>Cuenta pendiente de autorización</CardTitle>
           <CardDescription>
             Tu cuenta ya existe, pero todavía no tiene permisos asignados. El Propietario debe
-            definir tu rol y tu sector antes de que puedas usar la aplicación.
+            definir tu rol antes de que puedas usar la aplicación.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

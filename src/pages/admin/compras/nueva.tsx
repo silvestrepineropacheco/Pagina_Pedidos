@@ -33,7 +33,6 @@ interface Line {
   unitPrice: string;
   productUrl: string;
   folio: string;
-  sectorName: string;
 }
 
 const NewPurchasePage = () => {
@@ -77,7 +76,6 @@ const NewPurchasePage = () => {
         unitPrice: "",
         productUrl: "",
         folio: row.folio,
-        sectorName: row.sector_name,
       })),
     );
   }, [summary, preselectedItems, preselectedRequest]);
@@ -183,7 +181,7 @@ const NewPurchasePage = () => {
 
       <PageHeader
         title="Registrar compra"
-        description="Podés comprar artículos de distintas solicitudes y sectores en una misma compra. Si compraste en dos lugares, registrá dos compras."
+        description="Podés comprar artículos de distintas solicitudes en una misma compra. Si compraste en dos lugares, registrá dos compras."
       />
 
       <Card className="shadow-card">
@@ -315,8 +313,7 @@ const NewPurchasePage = () => {
                     <span className="min-w-0">
                       <span className="block font-medium">{line.name}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {line.folio} · {line.sectorName} · pendiente de compra {formatQty(line.pending)}{" "}
-                        {line.unit ?? ""}
+                        {line.folio} · pendiente de compra {formatQty(line.pending)} {line.unit ?? ""}
                       </span>
                     </span>
                   </label>

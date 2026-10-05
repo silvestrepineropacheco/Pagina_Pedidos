@@ -13,8 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useProfiles, useSectors } from "@/hooks/use-reference-data";
-import { usePeopleMaps } from "@/hooks/use-reference-data";
+import { usePeopleMaps, useProfiles } from "@/hooks/use-reference-data";
 import { useRequests } from "@/hooks/use-requests";
 import { CATEGORIES, PRIORITIES, REQUEST_STATUS } from "@/lib/constants";
 import type { RequestRow } from "@/lib/types";
@@ -33,13 +32,11 @@ const ALL = "todos";
 const AdminRequestsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queue = searchParams.get("queue") ?? "";
-  const { personName, sectorName } = usePeopleMaps();
-  const { data: sectors } = useSectors();
+  const { personName } = usePeopleMaps();
   const { data: profiles } = useProfiles();
   const { data, isLoading, error, refetch } = useRequests({ limit: 500 });
 
   const [search, setSearch] = useState("");
-  const [sectorId, setSectorId] = useState(ALL);
   const [category, setCategory] = useState(ALL);
   const [priority, setPriority] = useState(ALL);
   const [status, setStatus] = useState(ALL);
@@ -60,7 +57,6 @@ const AdminRequestsPage = () => {
       if (queue === "unassigned") list = list.filter((request) => !request.assigned_admin_id);
     }
 
-    if (sectorId !== ALL) list = list.filter((request) => request.sector_id === sectorId);
     if (category !== ALL) list = list.filter((request) => request.category === category);
     if (priority !== ALL) list = list.filter((request) => request.priority === priority);
     if (status !== ALL) list = list.filter((request) => request.status === status);
@@ -78,7 +74,6 @@ const AdminRequestsPage = () => {
         const haystack = [
           request.folio ?? "",
           personName(request.requester_id) ?? "",
-          sectorName(request.sector_id) ?? "",
           request.equipment_name ?? "",
         ]
           .join(" ")
@@ -88,12 +83,11 @@ const AdminRequestsPage = () => {
     }
 
     return list;
-  }, [data, queue, sectorId, category, priority, status, adminId, from, to, search, personName, sectorName]);
+  }, [data, queue, category, priority, status, adminId, from, to, search, personName]);
 
   const clearFilters = () => {
     setSearchParams({});
     setSearch("");
-    setSectorId(ALL);
     setCategory(ALL);
     setPriority(ALL);
     setStatus(ALL);
@@ -106,7 +100,7 @@ const AdminRequestsPage = () => {
     <div className="space-y-4">
       <PageHeader
         title="Todos los pedidos"
-        description="Buscá por número, producto o solicitante y filtrá por sector, categoría, prioridad, estado, responsable y fechas."
+        description="Buscá por número, producto o solicitante y filtrá por categoría, prioridad, estado, responsable y fechas."
         actions={
           <Button variant="outline" onClick={clearFilters}>
             Limpiar filtros
@@ -121,25 +115,8 @@ const AdminRequestsPage = () => {
             id="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Número, solicitante, sector o equipo"
+            placeholder="Número, solicitante o equipo"
           />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Sector</Label>
-          <Select value={sectorId} onValueChange={setSectorId}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos</SelectItem>
-              {(sectors ?? []).map((sector) => (
-                <SelectItem key={sector.id} value={sector.id}>
-                  {sector.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="space-y-1.5">
@@ -230,9 +207,7 @@ const AdminRequestsPage = () => {
           <p className="text-sm text-muted-foreground">{filtered.length} pedidos encontrados</p>
           <RequestList
             requests={filtered}
-            sectorName={sectorName}
             personName={personName}
-            showSector
             emptyTitle="No hay pedidos con estos filtros"
           />
         </>

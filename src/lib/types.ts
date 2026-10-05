@@ -74,7 +74,8 @@ export interface RequestRow {
   folio: string | null;
   idempotency_key: string;
   requester_id: string;
-  sector_id: string;
+  /** Ya no se usa: la aplicación no trabaja con sectores. */
+  sector_id: string | null;
   category: RequestCategory;
   needed_by: string | null;
   priority: Priority;

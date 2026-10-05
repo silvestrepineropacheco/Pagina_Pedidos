@@ -71,7 +71,7 @@ const HelpPage = () => {
         <CardContent className="space-y-3 text-sm">
           <p>
             Centraliza los pedidos de <strong>insumos</strong>, <strong>indumentaria y equipamiento</strong> y{" "}
-            <strong>maquinaria o mejoras</strong> de cada sector. Cada encargado carga lo que necesita y
+            <strong>maquinaria o mejoras</strong>. Cada encargado carga lo que necesita y
             los administradores revisan, aprueban, compran y registran la recepción.
           </p>
           <p className="text-muted-foreground">
@@ -83,10 +83,10 @@ const HelpPage = () => {
             <div className="rounded-md border border-border p-3">
               <p className="flex items-center gap-2 font-medium">
                 <ClipboardList className="h-4 w-4 text-primary" />
-                Encargado de sector
+                Encargado
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Carga pedidos de su sector, sigue el estado, responde consultas y confirma lo que
+                Carga pedidos, sigue el estado, responde consultas y confirma lo que
                 recibe.
               </p>
             </div>
@@ -106,7 +106,7 @@ const HelpPage = () => {
                 Propietario
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Todo lo del administrador y además autoriza usuarios y asigna rol y sector.
+                Todo lo del administrador y además autoriza usuarios y asigna su rol.
               </p>
             </div>
           </div>
@@ -130,7 +130,7 @@ const HelpPage = () => {
             steps={[
               <>
                 Entrá con tu <strong>correo y contraseña</strong>. Si es tu primera vez, el
-                Propietario tiene que autorizarte y asignarte tu sector.
+                Propietario tiene que autorizarte y asignarte tu rol.
               </>,
               <>
                 En el inicio tocá el botón verde <strong>“Nuevo pedido”</strong>.
@@ -181,7 +181,7 @@ const HelpPage = () => {
                 <strong>Pendiente de revisión</strong>.
               </>,
               <>
-                Seguí el pedido en <strong>“Pedidos de mi sector”</strong>: ahí ves el estado de cada
+                Seguí el pedido en <strong>“Pedidos”</strong>: ahí ves el estado de cada
                 artículo, qué se aprobó, qué se compró, qué se recibió y el saldo pendiente.
               </>,
             ]}
@@ -193,7 +193,7 @@ const HelpPage = () => {
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/pedidos">Ver pedidos de mi sector</Link>
+              <Link to="/pedidos">Ver pedidos</Link>
             </Button>
           </div>
         </CardContent>
@@ -264,7 +264,7 @@ const HelpPage = () => {
                   agrupado por producto idéntico. Desde ahí o desde el pedido, usá{" "}
                   <strong>“Registrar compra”</strong>: canal, proveedor, cantidades, precio unitario,
                   costo de envío a nivel compra, enlace comprado y comprobante. Podés reunir
-                  artículos de varias solicitudes y sectores en una misma compra, y registrar compras
+                  artículos de varias solicitudes en una misma compra, y registrar compras
                   parciales.
                 </>,
                 <>
@@ -276,9 +276,9 @@ const HelpPage = () => {
                   motivo: recién ahí el pedido se marca como completado.
                 </>,
                 <>
-                  El <strong>catálogo</strong> y los <strong>sectores</strong> se mantienen desde el
+                  El <strong>catálogo</strong> se mantiene desde el
                   menú; desactivar no borra el historial. Los <strong>reportes</strong> muestran
-                  pedidos por sector, por estado y antigüedad, gasto por período y productos más
+                  pedidos por solicitante, por estado y antigüedad, gasto por período y productos más
                   pedidos.
                 </>,
               ]}

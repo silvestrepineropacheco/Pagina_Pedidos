@@ -7,7 +7,6 @@ export interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   role: AppRole | null;
-  sectorId: string | null;
   /** true solo cuando ya sabemos si hay sesion y, si la hay, ya llego su perfil. */
   ready: boolean;
   loading: boolean;

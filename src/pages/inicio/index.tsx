@@ -46,7 +46,7 @@ const CountCard = ({
 
 const HomePage = () => {
   const { profile } = useAuth();
-  const { personName, sectorName } = usePeopleMaps();
+  const { personName } = usePeopleMaps();
   const { data: requests, isLoading } = useRequests({ limit: 200 });
   const list = requests ?? [];
 
@@ -58,14 +58,12 @@ const HomePage = () => {
   return (
     <div className="space-y-5">
       <div className="rounded-lg bg-primary p-5 text-primary-foreground shadow-card">
-        <p className="text-sm text-primary-foreground/80">
-          {sectorName(profile?.sector_id) ?? "Sin sector asignado"}
-        </p>
+        <p className="text-sm text-primary-foreground/80">Pedidos y compras</p>
         <h1 className="mt-1 text-2xl font-semibold leading-tight">
-          {profile?.full_name ?? "Encargado de sector"}
+          {profile?.full_name ?? "Encargado"}
         </h1>
         <p className="mt-1 text-sm text-primary-foreground/80">
-          Cargá tus solicitudes y seguí el estado de cada pedido de tu sector.
+          Cargá tus solicitudes y seguí el estado de cada pedido.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button size="xl" variant="success" asChild>
@@ -77,7 +75,7 @@ const HomePage = () => {
           <Button size="xl" variant="secondary" asChild>
             <Link to="/pedidos">
               <ClipboardList className="h-5 w-5" />
-              Pedidos de mi sector
+              Ver pedidos
             </Link>
           </Button>
           <Button size="xl" variant="heroGhost" asChild>
@@ -112,7 +110,7 @@ const HomePage = () => {
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Últimos pedidos del sector</h2>
+          <h2 className="text-base font-semibold">Últimos pedidos</h2>
           <Link
             to="/pedidos"
             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
@@ -125,9 +123,8 @@ const HomePage = () => {
         ) : (
           <RequestList
             requests={recent}
-            sectorName={sectorName}
             personName={personName}
-            emptyTitle="Todavía no hay pedidos en tu sector"
+            emptyTitle="Todavía no hay pedidos"
             emptyDescription="Cuando cargues el primer pedido lo vas a ver acá."
           />
         )}

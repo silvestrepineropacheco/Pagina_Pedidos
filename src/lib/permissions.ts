@@ -26,7 +26,7 @@ export const roleLabel = (role?: AppRole | null) => {
     case "admin":
       return "Administrador";
     case "encargado":
-      return "Encargado de sector";
+      return "Encargado";
     default:
       return "Pendiente de autorización";
   }

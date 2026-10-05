@@ -19,7 +19,6 @@ import type {
   RequestItemRow,
   RequestRow,
   RequestStatus,
-  Sector,
 } from "./types";
 
 type Tables = Database["public"]["Tables"];
@@ -39,11 +38,6 @@ const run = async <T>(query: PromiseLike<QueryResult>): Promise<T> => {
 const db = () => supabase;
 
 /* ---------------------------------- Referencias --------------------------------- */
-
-export const fetchSectors = (onlyActive = false) => {
-  const query = db().from("sectors").select("*").order("name");
-  return run<Sector[]>(onlyActive ? query.eq("active", true) : query);
-};
 
 export const fetchCatalogItems = (category?: RequestCategory) => {
   const query = db().from("catalog_items").select("*").order("name");
@@ -102,7 +96,6 @@ export const fetchAllRequestItems = () =>
 export interface NewRequestPayload {
   idempotency_key: string;
   requester_id: string;
-  sector_id: string;
   category: RequestCategory;
   needed_by: string | null;
   priority: string;
@@ -352,15 +345,15 @@ export const fetchEmailMessages = (requestId: string) =>
 /* ------------------------------ Gestion de usuarios ------------------------------ */
 
 /**
- * Autorizar una cuenta que ya existe (registrada) y asignarle rol y sector.
+ * Autorizar una cuenta que ya existe (registrada) y asignarle su rol.
  * Es una actualizacion directa: la base valida en el servidor que quien la
  * ejecuta sea el Propietario. No depende de credenciales de administrador.
  */
-export const authorizeProfile = (userId: string, role: AppRole, sectorId: string | null) =>
+export const authorizeProfile = (userId: string, role: AppRole) =>
   run<Profile[]>(
     db()
       .from("profiles")
-      .update({ role, sector_id: sectorId, active: true, email_verified: true })
+      .update({ role, active: true, email_verified: true })
       .eq("id", userId)
       .select("*"),
   );

@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/auth-context";
-import { usePeopleMaps, useProfiles, useSectors } from "@/hooks/use-reference-data";
+import { usePeopleMaps, useProfiles } from "@/hooks/use-reference-data";
 import { useRequestBundle } from "@/hooks/use-requests";
 import {
   addComment,
@@ -64,9 +64,8 @@ const RequestDetailPage = () => {
   const queryClient = useQueryClient();
   const { user, role } = useAuth();
   const isAdmin = can.isAdmin(role);
-  const { personName, sectorName } = usePeopleMaps();
+  const { personName } = usePeopleMaps();
   const { data: profiles } = useProfiles();
-  const { data: sectors } = useSectors();
 
   const { data: bundle, isLoading, error, refetch } = useRequestBundle(id, { emails: isAdmin });
 
@@ -209,7 +208,6 @@ const RequestDetailPage = () => {
       const created = await createDraftRequest({
         idempotency_key: createIdempotencyKey(),
         requester_id: user.id,
-        sector_id: request.sector_id,
         category: request.category,
         needed_by: request.needed_by,
         priority: "normal",
@@ -281,7 +279,7 @@ const RequestDetailPage = () => {
       <ErrorState
         message={
           error instanceof Error
-            ? `${error.message}. Si la solicitud es de otro sector, no tenés acceso.`
+            ? `${error.message}. Puede que la solicitud no exista o que no tengas acceso.`
             : "No se pudo cargar la solicitud."
         }
         onRetry={() => void refetch()}
@@ -320,8 +318,7 @@ const RequestDetailPage = () => {
                 <PriorityBadge priority={request.priority} />
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {categoryLabel(request.category)} · {sectorName(request.sector_id) ?? "Sin sector"} ·{" "}
-                {personName(request.requester_id) ?? "Sin solicitante"}
+                {categoryLabel(request.category)} · {personName(request.requester_id) ?? "Sin solicitante"}
               </p>
             </div>
             <div className="text-right text-sm">

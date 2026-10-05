@@ -4137,7 +4137,7 @@ export type Database = {
           problem: string | null
           repeated_from_id: string | null
           requester_id: string
-          sector_id: string
+          sector_id: string | null
           status: string
           submitted_at: string | null
           technical_specs: string | null
@@ -4167,7 +4167,7 @@ export type Database = {
           problem?: string | null
           repeated_from_id?: string | null
           requester_id: string
-          sector_id: string
+          sector_id?: string | null
           status?: string
           submitted_at?: string | null
           technical_specs?: string | null
@@ -4197,7 +4197,7 @@ export type Database = {
           problem?: string | null
           repeated_from_id?: string | null
           requester_id?: string
-          sector_id?: string
+          sector_id?: string | null
           status?: string
           submitted_at?: string | null
           technical_specs?: string | null
@@ -4324,7 +4324,7 @@ export type Database = {
           problem: string | null
           repeated_from_id: string | null
           requester_id: string
-          sector_id: string
+          sector_id: string | null
           status: string
           submitted_at: string | null
           technical_specs: string | null
@@ -4392,7 +4392,7 @@ export type Database = {
           problem: string | null
           repeated_from_id: string | null
           requester_id: string
-          sector_id: string
+          sector_id: string | null
           status: string
           submitted_at: string | null
           technical_specs: string | null
@@ -4501,7 +4501,7 @@ export type Database = {
           problem: string | null
           repeated_from_id: string | null
           requester_id: string
-          sector_id: string
+          sector_id: string | null
           status: string
           submitted_at: string | null
           technical_specs: string | null
@@ -4595,7 +4595,7 @@ export type Database = {
           problem: string | null
           repeated_from_id: string | null
           requester_id: string
-          sector_id: string
+          sector_id: string | null
           status: string
           submitted_at: string | null
           technical_specs: string | null

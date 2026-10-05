@@ -33,7 +33,7 @@ const POR_RECIBIR: RequestStatus[] = ["purchased_pending_receipt", "partially_re
 const CERRADOS: RequestStatus[] = ["completed", "rejected", "cancelled"];
 
 const MyRequestsPage = () => {
-  const { personName, sectorName } = usePeopleMaps();
+  const { personName } = usePeopleMaps();
   const { data, isLoading, error, refetch } = useRequests({ limit: 300 });
   const [tab, setTab] = useState("todos");
   const [status, setStatus] = useState("todos");
@@ -54,17 +54,17 @@ const MyRequestsPage = () => {
         (item) =>
           (item.folio ?? "").toLowerCase().includes(term) ||
           (personName(item.requester_id) ?? "").toLowerCase().includes(term) ||
-          (sectorName(item.sector_id) ?? "").toLowerCase().includes(term),
+          (personName(item.assigned_admin_id) ?? "").toLowerCase().includes(term),
       );
     }
     return list;
-  }, [data, tab, status, search, personName, sectorName]);
+  }, [data, tab, status, search, personName]);
 
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Pedidos de mi sector"
-        description="Todos los pedidos del sector, incluidos los de tus compañeros. Solo podés editar los borradores que creaste vos."
+        title="Pedidos"
+        description="Todos los pedidos cargados, incluidos los de tus compañeros. Solo podés editar los borradores que creaste vos."
         actions={
           <Button asChild>
             <Link to="/nuevo">
@@ -116,7 +116,6 @@ const MyRequestsPage = () => {
       ) : (
         <RequestList
           requests={filtered}
-          sectorName={sectorName}
           personName={personName}
           emptyTitle="No hay pedidos con estos filtros"
         />

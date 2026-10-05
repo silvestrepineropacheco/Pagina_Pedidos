@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/auth-context";
-import { useSectors } from "@/hooks/use-reference-data";
 import {
   fetchNotificationPrefs,
   ownerSetupPending,
@@ -21,11 +20,9 @@ import { cn } from "@/lib/utils";
 
 const ProfilePage = () => {
   const { profile, user, role, refreshProfile } = useAuth();
-  const { data: sectors } = useSectors();
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [savingName, setSavingName] = useState(false);
   const [notifyNew, setNotifyNew] = useState(true);
-  const [sectorIds, setSectorIds] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [setupPending, setSetupPending] = useState(false);
@@ -40,7 +37,6 @@ const ProfilePage = () => {
       .then((prefs) => {
         if (!prefs) return;
         setNotifyNew(prefs.notify_new_requests);
-        setSectorIds(prefs.sector_ids ?? []);
         setCategories(prefs.categories ?? []);
       })
       .catch(() => undefined);
@@ -73,7 +69,6 @@ const ProfilePage = () => {
     try {
       await saveNotificationPrefs(user.id, {
         notify_new_requests: notifyNew,
-        sector_ids: sectorIds,
         categories,
       });
       toast({ title: "Preferencias de notificación guardadas" });
@@ -109,7 +104,7 @@ const ProfilePage = () => {
         <CardHeader>
           <CardTitle className="text-base">Datos de la cuenta</CardTitle>
           <CardDescription>
-            El correo, el rol y el sector solo los puede modificar el Propietario.
+            El correo y el rol solo los puede modificar el Propietario.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -135,14 +130,6 @@ const ProfilePage = () => {
             <Label>Rol</Label>
             <Input value={roleLabel(role)} readOnly disabled />
           </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Sector</Label>
-            <Input
-              value={sectors?.find((sector) => sector.id === profile?.sector_id)?.name ?? "Sin sector asignado"}
-              readOnly
-              disabled
-            />
-          </div>
         </CardContent>
       </Card>
 
@@ -153,7 +140,7 @@ const ProfilePage = () => {
             Avisos de nuevos pedidos por correo
           </CardTitle>
           <CardDescription>
-            Podés desactivar los avisos o limitarlos a los sectores y categorías que te interesan.
+            Podés desactivar los avisos o limitarlos a las categorías que te interesan.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -165,30 +152,6 @@ const ProfilePage = () => {
               </p>
             </div>
             <Switch checked={notifyNew} onCheckedChange={setNotifyNew} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Sectores de interés (opcional)</Label>
-            <div className="flex flex-wrap gap-2">
-              {(sectors ?? []).map((sector) => (
-                <button
-                  key={sector.id}
-                  type="button"
-                  onClick={() => toggle(sectorIds, sector.id, setSectorIds)}
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-sm transition-colors",
-                    sectorIds.includes(sector.id)
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground hover:bg-accent",
-                  )}
-                >
-                  {sector.name}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Sin selección, recibís avisos de todos los sectores.
-            </p>
           </div>
 
           <div className="space-y-2">

@@ -24,7 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/auth-context";
-import { useSectors } from "@/hooks/use-reference-data";
+import { useCatalog } from "@/hooks/use-reference-data";
 import { useRequestBundle } from "@/hooks/use-requests";
 import {
   createDraftRequest,
@@ -39,7 +39,6 @@ import { CATEGORIES, MACHINERY_TYPES, UNITS, categoryLabel, labelOf } from "@/li
 import { formatQty } from "@/lib/format";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import type { Priority, RequestCategory } from "@/lib/types";
-import { useCatalog } from "@/hooks/use-reference-data";
 import { ItemEditor } from "./item-editor";
 import {
   createEmptyItem,
@@ -66,8 +65,7 @@ const RequestFormPage = () => {
   const draftId = searchParams.get("borrador");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, sectorId } = useAuth();
-  const { data: sectors } = useSectors();
+  const { user } = useAuth();
   const { data: bundle } = useRequestBundle(draftId ?? undefined);
   const { data: catalog } = useCatalog();
 
@@ -84,11 +82,6 @@ const RequestFormPage = () => {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [removedItemIds, setRemovedItemIds] = useState<string[]>([]);
   const loadedRef = useRef<string | null>(null);
-
-  const sectorName = useMemo(
-    () => sectors?.find((sector) => sector.id === sectorId)?.name ?? "Sin sector asignado",
-    [sectors, sectorId],
-  );
 
   useEffect(() => {
     if (!bundle || !draftId) return;
@@ -157,14 +150,6 @@ const RequestFormPage = () => {
       }
       return null;
     }
-    if (!sectorId) {
-      toast({
-        title: "Sin sector asignado",
-        description: "Tu cuenta necesita un sector para poder cargar pedidos.",
-        variant: "destructive",
-      });
-      return null;
-    }
 
     setSaving(true);
     try {
@@ -176,7 +161,6 @@ const RequestFormPage = () => {
           ...patch,
           idempotency_key: idempotencyKey,
           requester_id: user.id,
-          sector_id: sectorId,
           category,
         });
         id = created.id;
@@ -312,14 +296,6 @@ const RequestFormPage = () => {
         </div>
       </div>
 
-      {!sectorId ? (
-        <div className="flex items-start gap-2 rounded-md bg-warning-soft p-3 text-sm text-warning-soft-foreground">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          Tu cuenta no tiene sector asignado. Pedile al Propietario que lo configure para poder
-          cargar solicitudes.
-        </div>
-      ) : null}
-
       <Card className="shadow-card">
         <CardHeader>
           <CardTitle className="text-base">Datos generales</CardTitle>
@@ -330,12 +306,7 @@ const RequestFormPage = () => {
             <Input value={user?.email ?? ""} readOnly disabled />
           </div>
           <div className="space-y-1.5">
-            <Label>Sector</Label>
-            <Input value={sectorName} readOnly disabled />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="needed_by">Fecha para la que se necesita</Label>
+            <Label>Fecha para la que se necesita</Label>
             <Input
               id="needed_by"
               type="date"
@@ -345,7 +316,6 @@ const RequestFormPage = () => {
             />
             {errors.neededBy ? <p className="text-xs text-destructive">{errors.neededBy}</p> : null}
           </div>
-
           <div className="space-y-1.5">
             <Label>Prioridad</Label>
             <Select
@@ -607,10 +577,6 @@ const RequestFormPage = () => {
               <p>
                 <span className="text-muted-foreground">Categoría: </span>
                 {categoryLabel(category)}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Sector: </span>
-                {sectorName}
               </p>
               <p>
                 <span className="text-muted-foreground">Fecha necesaria: </span>

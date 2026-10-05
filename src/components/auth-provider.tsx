@@ -97,7 +97,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       session,
       profile,
       role: profile?.role ?? (user ? "pending" : null),
-      sectorId: profile?.sector_id ?? null,
       ready: !loading && (!user || profileReady),
       loading,
       refreshProfile,

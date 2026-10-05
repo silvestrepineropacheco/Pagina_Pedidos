@@ -8,7 +8,6 @@
 // usuarios de autenticacion requiere privilegios de administrador. Si el
 // entorno no lo expone, se informa explicitamente y queda el camino alternativo
 // (la persona se registra y el Propietario la autoriza desde el panel).
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
@@ -79,17 +78,13 @@ Deno.serve(async (req) => {
     if (action === "authorize") {
       const userId = body?.user_id as string;
       const role = String(body?.role ?? "encargado");
-      const sectorId = body?.sector_id ?? null;
 
       if (!userId) return jsonResponse({ error: "Falta el usuario." }, 400);
       if (!ROLES.includes(role)) return jsonResponse({ error: "Rol invalido." }, 400);
-      if (role === "encargado" && !sectorId) {
-        return jsonResponse({ error: "Un encargado necesita un sector asignado." }, 400);
-      }
 
       const { error } = await callerClient
         .from("profiles")
-        .update({ role, sector_id: sectorId, active: true, email_verified: true })
+        .update({ role, active: true, email_verified: true })
         .eq("id", userId);
 
       if (error) {
@@ -139,7 +134,6 @@ Deno.serve(async (req) => {
       const email = String(body?.email ?? "").trim().toLowerCase();
       const fullName = String(body?.full_name ?? "").trim();
       const role = String(body?.role ?? "encargado");
-      const sectorId = body?.sector_id ?? null;
 
       if (!email || !email.includes("@")) {
         return jsonResponse({ error: "Correo invalido." }, 400);
@@ -168,7 +162,6 @@ Deno.serve(async (req) => {
         .update({
           full_name: fullName || email.split("@")[0],
           role,
-          sector_id: sectorId,
           active: true,
           email_verified: true,
         })

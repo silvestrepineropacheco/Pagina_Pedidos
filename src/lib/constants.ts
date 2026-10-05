@@ -129,7 +129,7 @@ export const EMAIL_STATUS: Record<EmailStatus, { label: string; tone: Tone }> = 
 export const ROLES: Option[] = [
   { value: "owner", label: "Propietario" },
   { value: "admin", label: "Administrador" },
-  { value: "encargado", label: "Encargado de sector" },
+  { value: "encargado", label: "Encargado" },
   { value: "pending", label: "Pendiente de autorización" },
 ];
 
