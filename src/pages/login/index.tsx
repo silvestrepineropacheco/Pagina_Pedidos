@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, KeyRound, Loader2, LogIn, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -80,8 +81,8 @@ const LoginPage = () => {
     <div className="flex min-h-screen flex-col bg-background lg:flex-row">
       <div className="flex flex-col justify-between bg-primary p-6 text-primary-foreground lg:w-[42%] lg:p-10">
         <div>
-          <p className="text-lg font-semibold">Manila</p>
-          <p className="text-sm text-primary-foreground/80">Pedidos y Compras</p>
+          <Logo onDark className="w-[220px]" />
+          <p className="mt-2 text-sm text-primary-foreground/80">Pedidos y Compras</p>
         </div>
         <div className="mt-8 space-y-3 lg:mt-0">
           <h1 className="text-2xl font-semibold leading-tight sm:text-3xl">

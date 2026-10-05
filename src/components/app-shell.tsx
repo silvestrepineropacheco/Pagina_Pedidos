@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/auth-context";
 import { useNotifications } from "@/hooks/use-purchases";
@@ -97,8 +98,8 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
       <aside className="hidden w-72 shrink-0 flex-col justify-between bg-sidebar p-4 lg:flex">
         <div className="space-y-6">
           <div className="px-2 pt-2">
-            <p className="text-base font-semibold text-sidebar-foreground">Manila</p>
-            <p className="text-xs text-sidebar-foreground/70">Pedidos y Compras</p>
+            <Logo onDark className="w-[170px]" />
+            <p className="mt-1.5 text-xs text-sidebar-foreground/70">Pedidos y Compras</p>
           </div>
           <NavList role={role} />
         </div>
@@ -132,7 +133,8 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] bg-sidebar p-4">
-              <SheetTitle className="mb-4 text-sidebar-foreground">{APP_NAME}</SheetTitle>
+              <SheetTitle className="sr-only">{APP_NAME}</SheetTitle>
+              <Logo onDark className="mb-4 w-[170px]" />
               <NavList role={role} onNavigate={() => setMenuOpen(false)} />
               <div className="mt-6 space-y-2">
                 <p className="px-1 text-xs text-sidebar-foreground/70">
@@ -153,8 +155,8 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
             </SheetContent>
           </Sheet>
 
-          <div className="min-w-0 flex-1 text-center">
-            <p className="truncate text-sm font-semibold text-primary-foreground">Manila | Pedidos y Compras</p>
+          <div className="flex min-w-0 flex-1 justify-center">
+            <Logo onDark className="w-[132px]" />
           </div>
 
           <NavLink to="/notificaciones" aria-label="Notificaciones" className="relative">
