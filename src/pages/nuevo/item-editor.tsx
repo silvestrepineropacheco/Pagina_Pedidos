@@ -1,3 +1,4 @@
+import { memo, useCallback } from "react";
 import { ImageIcon, Plus, Trash2, X } from "lucide-react";
 import { AttachmentLink, AttachmentUpload } from "@/components/attachments";
 import { Button } from "@/components/ui/button";
@@ -35,21 +36,26 @@ interface ItemEditorProps {
   variant: ItemVariant;
   catalog: CatalogItem[];
   folder: string;
-  onChange: (patch: Partial<DraftItem>) => void;
-  onRemove: () => void;
+  /** Callbacks estables (no se recrean en cada render) para poder memoizar. */
+  onChangeItem: (index: number, patch: Partial<DraftItem>) => void;
+  onRemoveItem: (index: number, id?: string) => void;
   canRemove: boolean;
 }
 
-export const ItemEditor = ({
+const ItemEditorBase = ({
   index,
   item,
   variant,
   catalog,
   folder,
-  onChange,
-  onRemove,
+  onChangeItem,
+  onRemoveItem,
   canRemove,
 }: ItemEditorProps) => {
+  const apply = useCallback(
+    (patch: Partial<DraftItem>) => onChangeItem(index, patch),
+    [onChangeItem, index],
+  );
   const isClothing = variant === "indumentaria";
   const urlInvalid = !isValidHttpUrl(item.suggested_url || null);
   const total = sizesTotal(item.sizes);
@@ -60,7 +66,7 @@ export const ItemEditor = ({
   const handlePick = (found: CatalogItem | null) => {
     if (!found) {
       // "Otro artículo": se escribe a mano.
-      onChange({
+      apply({
         catalog_item_id: null,
         name: "",
         sizes: isClothing
@@ -69,7 +75,7 @@ export const ItemEditor = ({
       });
       return;
     }
-    onChange({
+    apply({
       catalog_item_id: found.id,
       name: found.name,
       unit: found.unit ?? "unidades",
@@ -82,7 +88,7 @@ export const ItemEditor = ({
   };
 
   const updateRow = (rowKey: string, patch: { label?: string; qty?: string }) =>
-    onChange({
+    apply({
       sizes: item.sizes.map((row) => (row.key === rowKey ? { ...row, ...patch } : row)),
     });
 
@@ -91,7 +97,12 @@ export const ItemEditor = ({
       <div className="mb-3 flex items-center justify-between gap-2">
         <p className="font-semibold text-foreground">Artículo {index + 1}</p>
         {canRemove ? (
-          <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onRemoveItem(index, item.id)}
+          >
             <Trash2 className="h-4 w-4" />
             Quitar
           </Button>
@@ -147,7 +158,7 @@ export const ItemEditor = ({
           <Input
             id={`name-${item.key}`}
             value={item.name}
-            onChange={(event) => onChange({ name: event.target.value })}
+            onChange={(event) => apply({ name: event.target.value })}
             placeholder={
               isClothing ? "Ej.: Botas de goma de seguridad" : "Ej.: Caja de cartón 40x30x30"
             }
@@ -158,7 +169,7 @@ export const ItemEditor = ({
           <Label>Unidad de pedido</Label>
           <Select
             value={item.unit || UNSET}
-            onValueChange={(next) => onChange({ unit: next === UNSET ? "" : next })}
+            onValueChange={(next) => apply({ unit: next === UNSET ? "" : next })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Elegí una unidad" />
@@ -214,7 +225,7 @@ export const ItemEditor = ({
                     size="icon"
                     aria-label={`Quitar este ${rowWord}`}
                     onClick={() =>
-                      onChange({ sizes: item.sizes.filter((entry) => entry.key !== row.key) })
+                      apply({ sizes: item.sizes.filter((entry) => entry.key !== row.key) })
                     }
                   >
                     <X className="h-4 w-4" />
@@ -229,7 +240,7 @@ export const ItemEditor = ({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => onChange({ sizes: [...item.sizes, createSizeRow()] })}
+              onClick={() => apply({ sizes: [...item.sizes, createSizeRow()] })}
             >
               <Plus className="h-4 w-4" />
               {isClothing ? "Agregar otro talle o medida" : "Agregar otra medida o presentación"}
@@ -240,7 +251,7 @@ export const ItemEditor = ({
                 variant="ghost"
                 size="sm"
                 onClick={() =>
-                  onChange({
+                  apply({
                     sizes: suggestedSizes(item.name).map((label) => createSizeRow(label, "")),
                   })
                 }
@@ -260,7 +271,7 @@ export const ItemEditor = ({
               <Label>Motivo</Label>
               <Select
                 value={item.motivo || UNSET}
-                onValueChange={(value) => onChange({ motivo: value === UNSET ? "" : value })}
+                onValueChange={(value) => apply({ motivo: value === UNSET ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Elegí un motivo" />
@@ -283,7 +294,7 @@ export const ItemEditor = ({
               <Input
                 id={`target-${item.key}`}
                 value={item.destinatario}
-                onChange={(event) => onChange({ destinatario: event.target.value })}
+                onChange={(event) => apply({ destinatario: event.target.value })}
                 placeholder="Opcional"
               />
             </div>
@@ -295,7 +306,7 @@ export const ItemEditor = ({
           <Input
             id={`url-${item.key}`}
             value={item.suggested_url}
-            onChange={(event) => onChange({ suggested_url: event.target.value })}
+            onChange={(event) => apply({ suggested_url: event.target.value })}
             placeholder="https://..."
             aria-invalid={urlInvalid}
           />
@@ -308,14 +319,14 @@ export const ItemEditor = ({
             <Textarea
               id={`notes-${item.key}`}
               value={item.notes}
-              onChange={(event) => onChange({ notes: event.target.value })}
+              onChange={(event) => apply({ notes: event.target.value })}
               placeholder="Opcional"
             />
           ) : (
             <Input
               id={`notes-${item.key}`}
               value={item.notes}
-              onChange={(event) => onChange({ notes: event.target.value })}
+              onChange={(event) => apply({ notes: event.target.value })}
               placeholder="Opcional"
             />
           )}
@@ -328,7 +339,7 @@ export const ItemEditor = ({
               <AttachmentUpload
                 folder={folder}
                 label={item.photo_path ? "Reemplazar foto" : "Adjuntar foto"}
-                onUploaded={(path) => onChange({ photo_path: path })}
+                onUploaded={(path) => apply({ photo_path: path })}
                 disabled={!folder}
               />
               {item.photo_path ? (
@@ -338,7 +349,7 @@ export const ItemEditor = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => onChange({ photo_path: null })}
+                    onClick={() => apply({ photo_path: null })}
                   >
                     <X className="h-4 w-4" />
                     Quitar
@@ -357,3 +368,6 @@ export const ItemEditor = ({
     </div>
   );
 };
+
+/** Memoizado: escribir en un artículo no re-renderiza los demás. */
+export const ItemEditor = memo(ItemEditorBase);

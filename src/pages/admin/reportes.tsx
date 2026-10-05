@@ -17,6 +17,15 @@ const ReportsPage = () => {
   const { data: items } = useQuery({ queryKey: ["all-items"], queryFn: fetchAllRequestItems });
   const { data: purchases } = usePurchases();
 
+  // Mapa por id: evita recorrer todos los pedidos por cada artículo (era O(n²)).
+  const requestsById = useMemo(() => {
+    const map = new Map<string, { id: string; requester_id: string }>();
+    for (const request of requests ?? []) {
+      map.set(request.id, { id: request.id, requester_id: request.requester_id });
+    }
+    return map;
+  }, [requests]);
+
   const byRequester = useMemo(() => {
     const map = new Map<string, { name: string; count: number; approved: number; amount: number }>();
     for (const request of requests ?? []) {
@@ -31,7 +40,7 @@ const ReportsPage = () => {
       map.set(key, current);
     }
     for (const item of items ?? []) {
-      const request = (requests ?? []).find((entry) => entry.id === item.request_id);
+      const request = requestsById.get(item.request_id);
       if (!request) continue;
       const current = map.get(request.requester_id);
       if (!current) continue;
@@ -41,7 +50,7 @@ const ReportsPage = () => {
       }
     }
     return [...map.values()].sort((a, b) => b.count - a.count);
-  }, [requests, items, personName]);
+  }, [requests, items, requestsById, personName]);
 
   const byStatus = useMemo(() => {
     const map = new Map<string, { label: string; count: number; totalDays: number; aged: number }>();

@@ -29,8 +29,13 @@ const PurchasePendingPage = () => {
   const { data: requests } = useRequests({ limit: 500 });
   const [search, setSearch] = useState("");
 
-  const requesterOf = (requestId: string) =>
-    (requests ?? []).find((request) => request.id === requestId)?.requester_id ?? null;
+  const requesterOf = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const request of requests ?? []) {
+      map.set(request.id, request.requester_id);
+    }
+    return map;
+  }, [requests]);
 
   const groups = useMemo(() => {
     const map = new Map<string, Group>();
@@ -136,7 +141,7 @@ const PurchasePendingPage = () => {
                     <div className="min-w-0">
                       <p className="font-medium">{row.folio}</p>
                       <p className="text-xs text-muted-foreground">
-                        {personName(requesterOf(row.request_id)) ?? "Solicitante"} · aprobado{" "}
+                        {personName(requesterOf.get(row.request_id) ?? null) ?? "Solicitante"} · aprobado{" "}
                         {formatQty(row.approved_qty)} · ya comprado {formatQty(row.purchased_qty)}
                       </p>
                     </div>

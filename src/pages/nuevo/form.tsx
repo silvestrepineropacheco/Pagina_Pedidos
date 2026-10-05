@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, Loader2, Plus, Save, Send } from "lucide-react";
@@ -128,13 +128,34 @@ const RequestFormPage = () => {
 
   const uploadFolder = requestId ? `requests/${requestId}` : `drafts/${user?.id ?? "anonimo"}`;
 
-  const updateItem = (index: number, patch: Partial<DraftItem>) =>
+  // Estables a propósito: permiten que cada artículo se memoice y que escribir
+  // en uno no vuelva a renderizar los demás.
+  const patchItem = useCallback(
+    (index: number, patch: Partial<DraftItem>) =>
+      setState((previous) => ({
+        ...previous,
+        items: previous.items.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, ...patch } : item,
+        ),
+      })),
+    [],
+  );
+
+  const removeItem = useCallback((index: number, id?: string) => {
+    if (id) setRemovedItemIds((ids) => [...ids, id]);
     setState((previous) => ({
       ...previous,
-      items: previous.items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
-      ),
+      items:
+        previous.items.length === 1
+          ? [createEmptyItem()]
+          : previous.items.filter((_, itemIndex) => itemIndex !== index),
     }));
+  }, []);
+
+  const categoryCatalog = useMemo(
+    () => (catalog ?? []).filter((entry) => entry.category === category),
+    [catalog, category],
+  );
 
   const persist = async (silent = false): Promise<string | null> => {
     if (!user) return null;
@@ -511,19 +532,10 @@ const RequestFormPage = () => {
                   index={index}
                   item={item}
                   variant={category === "indumentaria" ? "indumentaria" : "insumos"}
-                  catalog={(catalog ?? []).filter((entry) => entry.category === category)}
+                  catalog={categoryCatalog}
                   folder={uploadFolder}
-                  onChange={(patch) => updateItem(index, patch)}
-                  onRemove={() => {
-                    if (item.id) setRemovedItemIds((ids) => [...ids, item.id as string]);
-                    setState((previous) => ({
-                      ...previous,
-                      items:
-                        previous.items.length === 1
-                          ? [createEmptyItem()]
-                          : previous.items.filter((_, itemIndex) => itemIndex !== index),
-                    }));
-                  }}
+                  onChangeItem={patchItem}
+                  onRemoveItem={removeItem}
                   canRemove={state.items.length > 1}
                 />
                 {itemError ? <p className="text-xs text-destructive">{itemError}</p> : null}
