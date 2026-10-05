@@ -10,7 +10,10 @@ export default tseslint.config(
   // noise (e.g. no-explicit-any in newly added shadcn components) and feeds
   // an AI "fix" loop against code that shouldn't change — every retry
   // billed. Ignore it wholesale; the user's own code stays fully linted.
-  { ignores: ["dist", "src/components/ui/**"] },
+  //
+  // supabase/functions/** runs on Deno, not in the Vite bundle: it uses the
+  // Deno global and esm.sh imports the browser lint config does not know.
+  { ignores: ["dist", "src/components/ui/**", "supabase/functions/**"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

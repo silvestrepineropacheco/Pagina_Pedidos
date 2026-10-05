@@ -7,8 +7,14 @@ project-root/
   ├── i18n.config.json       # i18n manifest for supported locales and language metadata
   ├── public/
   │   └── locales/           # public/locales/{code}.json translation files
+  ├── supabase/
+  │   ├── config.toml        # function configuration (JWT verification, etc.)
+  │   └── functions/         # backend functions (Deno). Not linted: runs on Deno, not in the bundle.
+  │       ├── manage-users/          # user, role and permission management (owner only)
+  │       └── send-request-emails/   # email notification queue processing
   ├── src/
   │   ├── components/        # All reusable UI components
+  │   │   ├── requests/      # request list, dialogs and request-specific pieces
   │   │   └── ui/            # Prebuilt and custom UI components, grouped by function
   │   ├── hooks/             # Custom React hooks
   │   ├── i18n/              # i18n runtime: config.ts (entry) + util.ts (helpers)
