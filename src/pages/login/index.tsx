@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, KeyRound, Loader2, LogIn, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { ownerSetupPending } from "@/lib/api";
-import { useEffect } from "react";
 
 type Mode = "login" | "signup";
 
@@ -18,6 +17,7 @@ const LoginPage = () => {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [setupCode, setSetupCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [setupPending, setSetupPending] = useState(false);
 
@@ -45,7 +45,10 @@ const LoginPage = () => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
-          data: { full_name: fullName.trim() },
+          data: {
+            full_name: fullName.trim(),
+            ...(setupCode.trim() ? { owner_setup_code: setupCode.trim() } : {}),
+          },
         },
       });
       if (error) throw new Error(error.message);
@@ -110,8 +113,10 @@ const LoginPage = () => {
               <div className="flex items-start gap-2 rounded-md bg-warning-soft p-3 text-xs text-warning-soft-foreground">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  La aplicación todavía no tiene Propietario configurado. Hasta que se autorice esa
-                  cuenta, ninguna persona puede administrar usuarios, roles ni permisos.
+                  La aplicación todavía no tiene Propietario. Creá tu cuenta con el{" "}
+                  <strong>código de configuración inicial</strong> para quedar como Propietario y
+                  poder autorizar usuarios, roles y sectores. Sin ese código, la cuenta queda
+                  pendiente de autorización.
                 </span>
               </div>
             ) : null}
@@ -157,6 +162,22 @@ const LoginPage = () => {
                   required
                 />
               </div>
+
+              {mode === "signup" && setupPending ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="setup_code">Código de configuración inicial (Propietario)</Label>
+                  <Input
+                    id="setup_code"
+                    value={setupCode}
+                    onChange={(event) => setSetupCode(event.target.value)}
+                    placeholder="Pegá el código de un solo uso"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Es de un solo uso: se consume al crear la cuenta y luego deja de funcionar.
+                  </p>
+                </div>
+              ) : null}
 
               <Button type="submit" size="xl" className="w-full" disabled={submitting}>
                 {submitting ? (

@@ -51,8 +51,9 @@ const PendingPage = () => {
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
                 Configuración inicial pendiente: la aplicación todavía no tiene una cuenta de
-                Propietario autorizada. Indicá el correo de esa cuenta para habilitarla y que pueda
-                asignar roles y sectores.
+                Propietario autorizada. Si esta cuenta debe ser la del Propietario, volvé a la
+                pantalla de ingreso, creá la cuenta con el código de configuración inicial y quedará
+                habilitada como Propietaria.
               </span>
             </div>
           ) : null}

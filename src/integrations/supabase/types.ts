@@ -3396,18 +3396,24 @@ export type Database = {
           id: boolean
           invite_mode: string
           owner_email: string | null
+          owner_setup_code_hash: string | null
+          owner_setup_salt: string | null
           updated_at: string
         }
         Insert: {
           id?: boolean
           invite_mode?: string
           owner_email?: string | null
+          owner_setup_code_hash?: string | null
+          owner_setup_salt?: string | null
           updated_at?: string
         }
         Update: {
           id?: boolean
           invite_mode?: string
           owner_email?: string | null
+          owner_setup_code_hash?: string | null
+          owner_setup_salt?: string | null
           updated_at?: string
         }
         Relationships: []
