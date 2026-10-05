@@ -1,6 +1,7 @@
 import { AccessRoute, PublicOnlyRoute } from "./components/route-guards";
 import AdminPanelPage from "./pages/admin/panel";
 import AdminRequestsPage from "./pages/admin/pedidos";
+import HelpPage from "./pages/ayuda";
 import CatalogPage from "./pages/admin/catalogo";
 import PurchaseDetailPage from "./pages/admin/compras/detalle";
 import PurchasesPage from "./pages/admin/compras";
@@ -96,6 +97,15 @@ export const routers = [
     element: (
       <AccessRoute>
         <ProfilePage />
+      </AccessRoute>
+    ),
+  },
+  {
+    path: "/ayuda",
+    name: "ayuda",
+    element: (
+      <AccessRoute>
+        <HelpPage />
       </AccessRoute>
     ),
   },

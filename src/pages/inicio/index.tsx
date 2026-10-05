@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, ClipboardList, PackageCheck, Plus, Timer, Truck } from "lucide-react";
+import { ArrowRight, BookOpen, ClipboardList, PackageCheck, Plus, Timer, Truck } from "lucide-react";
 import { RequestList } from "@/components/requests/request-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -78,6 +78,12 @@ const HomePage = () => {
             <Link to="/pedidos">
               <ClipboardList className="h-5 w-5" />
               Pedidos de mi sector
+            </Link>
+          </Button>
+          <Button size="xl" variant="heroGhost" asChild>
+            <Link to="/ayuda">
+              <BookOpen className="h-5 w-5" />
+              ¿Cómo funciona?
             </Link>
           </Button>
         </div>

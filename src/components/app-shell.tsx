@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import {
   BarChart3,
   Bell,
+  BookOpen,
   ClipboardList,
   Factory,
   FileCheck2,
@@ -50,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/sectores", label: "Sectores", icon: Factory, roles: ADMINS },
   { to: "/admin/usuarios", label: "Usuarios y permisos", icon: Users, roles: ["owner"] },
   { to: "/admin/reportes", label: "Reportes", icon: BarChart3, roles: ADMINS },
+  { to: "/ayuda", label: "Cómo funciona", icon: BookOpen, roles: EVERYONE },
   { to: "/notificaciones", label: "Notificaciones", icon: Bell, roles: EVERYONE },
   { to: "/perfil", label: "Mi perfil", icon: Settings2, roles: EVERYONE },
 ];
