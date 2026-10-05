@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import type {
+  AppRole,
   CatalogItem,
   ChangeRequestRow,
   CommentRow,
@@ -350,6 +351,23 @@ export const fetchEmailMessages = (requestId: string) =>
 
 /* ------------------------------ Gestion de usuarios ------------------------------ */
 
+/**
+ * Autorizar una cuenta que ya existe (registrada) y asignarle rol y sector.
+ * Es una actualizacion directa: la base valida en el servidor que quien la
+ * ejecuta sea el Propietario. No depende de credenciales de administrador.
+ */
+export const authorizeProfile = (userId: string, role: AppRole, sectorId: string | null) =>
+  run<Profile[]>(
+    db()
+      .from("profiles")
+      .update({ role, sector_id: sectorId, active: true, email_verified: true })
+      .eq("id", userId)
+      .select("*"),
+  );
+
+export const setProfileActive = (userId: string, active: boolean) =>
+  run<Profile[]>(db().from("profiles").update({ active }).eq("id", userId).select("*"));
+
 export interface ManageUsersResult {
   status?: string;
   user_id?: string;
@@ -374,6 +392,8 @@ export const invokeManageUsers = async (payload: Record<string, unknown>): Promi
   }
   return result;
 };
+
+export const SERVICE_ROLE_UNAVAILABLE = "service role";
 
 /* ------------------------- Configuracion inicial del sistema ------------------------- */
 

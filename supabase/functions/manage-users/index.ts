@@ -1,9 +1,13 @@
-// Gestion de usuarios reservada al Propietario: invitar/crear cuentas,
-// autorizar cuentas pendientes, cambiar rol y sector, y desactivar cuentas.
+// Gestion de usuarios reservada al Propietario.
 //
-// El permiso se valida en el servidor contra la base (rol = owner y activo).
-// Si el service role no esta disponible en el entorno, la funcion lo informa
-// explicitamente en lugar de simular un resultado.
+// Autorizar, desactivar y reactivar cuentas son simples actualizaciones sobre
+// "profiles": se ejecutan con el cliente del propio llamador, porque la base
+// valida en el servidor (RLS + guardas) que quien llama sea el Propietario.
+//
+// Solo "invite" (crear una cuenta nueva) necesita el service role, porque crear
+// usuarios de autenticacion requiere privilegios de administrador. Si el
+// entorno no lo expone, se informa explicitamente y queda el camino alternativo
+// (la persona se registra y el Propietario la autoriza desde el panel).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
@@ -18,7 +22,7 @@ const jsonResponse = (payload: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-const ROLES = ["owner", "admin", "encargado", "pending"];
+const ROLES = ["admin", "encargado"];
 
 const generateTemporaryPassword = () => {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -44,8 +48,8 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+    // Cliente con la sesion del llamador: respeta RLS y dispara las guardas.
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
@@ -63,27 +67,75 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!callerProfile || callerProfile.role !== "owner" || !callerProfile.active) {
-      return jsonResponse({ error: "Solo el Propietario puede gestionar usuarios, roles y permisos." }, 403);
-    }
-
-    if (!serviceRoleKey) {
       return jsonResponse(
-        {
-          error:
-            "Pendiente de configuracion: el entorno no expone el service role, asi que no se pueden crear ni modificar cuentas desde el panel.",
-          fallback:
-            "La persona puede registrarse, verificar su correo y luego autorizarla desde esta misma pantalla.",
-        },
-        501,
+        { error: "Solo el Propietario puede gestionar usuarios, roles y permisos." },
+        403,
       );
     }
-
-    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
     const body = await req.json();
     const action = body?.action as string;
 
+    if (action === "authorize") {
+      const userId = body?.user_id as string;
+      const role = String(body?.role ?? "encargado");
+      const sectorId = body?.sector_id ?? null;
+
+      if (!userId) return jsonResponse({ error: "Falta el usuario." }, 400);
+      if (!ROLES.includes(role)) return jsonResponse({ error: "Rol invalido." }, 400);
+      if (role === "encargado" && !sectorId) {
+        return jsonResponse({ error: "Un encargado necesita un sector asignado." }, 400);
+      }
+
+      const { error } = await callerClient
+        .from("profiles")
+        .update({ role, sector_id: sectorId, active: true, email_verified: true })
+        .eq("id", userId);
+
+      if (error) {
+        console.error("authorize fallo", error.message);
+        return jsonResponse({ error: error.message }, 400);
+      }
+      return jsonResponse({ status: "authorized", user_id: userId });
+    }
+
+    if (action === "deactivate" || action === "reactivate") {
+      const userId = body?.user_id as string;
+      if (!userId) return jsonResponse({ error: "Falta el usuario." }, 400);
+      if (action === "deactivate" && userId === userData.user.id) {
+        return jsonResponse({ error: "No podes desactivar tu propia cuenta." }, 400);
+      }
+
+      const { error } = await callerClient
+        .from("profiles")
+        .update({ active: action === "reactivate" })
+        .eq("id", userId);
+
+      if (error) {
+        console.error("cambio de estado fallo", error.message);
+        return jsonResponse({ error: error.message }, 400);
+      }
+      return jsonResponse({
+        status: action === "reactivate" ? "reactivated" : "deactivated",
+        user_id: userId,
+      });
+    }
+
     if (action === "invite") {
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!serviceRoleKey) {
+        console.warn("invite sin service role disponible");
+        return jsonResponse(
+          {
+            error:
+              "Crear cuentas desde el panel no esta disponible en este entorno (falta el service role).",
+            fallback:
+              "Pedile a la persona que se registre con el link de la aplicacion y, cuando aparezca en Cuentas pendientes, autorizala con su rol y sector.",
+          },
+          501,
+        );
+      }
+
       const email = String(body?.email ?? "").trim().toLowerCase();
       const fullName = String(body?.full_name ?? "").trim();
       const role = String(body?.role ?? "encargado");
@@ -92,11 +144,13 @@ Deno.serve(async (req) => {
       if (!email || !email.includes("@")) {
         return jsonResponse({ error: "Correo invalido." }, 400);
       }
-      if (!ROLES.includes(role) || role === "owner") {
+      if (!ROLES.includes(role)) {
         return jsonResponse({ error: "Rol invalido para una invitacion." }, 400);
       }
 
+      const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
       const temporaryPassword = generateTemporaryPassword();
+
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         email,
         password: temporaryPassword,
@@ -106,10 +160,7 @@ Deno.serve(async (req) => {
 
       if (createError || !created?.user) {
         console.error("createUser fallo", createError?.message);
-        return jsonResponse(
-          { error: createError?.message ?? "No se pudo crear la cuenta." },
-          400,
-        );
+        return jsonResponse({ error: createError?.message ?? "No se pudo crear la cuenta." }, 400);
       }
 
       const { error: profileError } = await admin
@@ -135,60 +186,6 @@ Deno.serve(async (req) => {
         temporary_password: temporaryPassword,
         note: "Entrega esta contrasena temporal a la persona; deberia cambiarla al ingresar.",
       });
-    }
-
-    if (action === "authorize") {
-      const userId = body?.user_id as string;
-      const role = String(body?.role ?? "encargado");
-      const sectorId = body?.sector_id ?? null;
-      if (!userId) {
-        return jsonResponse({ error: "Falta el usuario." }, 400);
-      }
-      if (!ROLES.includes(role) || role === "owner") {
-        return jsonResponse({ error: "Rol invalido." }, 400);
-      }
-      if (role === "encargado" && !sectorId) {
-        return jsonResponse({ error: "Un encargado necesita un sector asignado." }, 400);
-      }
-
-      const { error } = await admin
-        .from("profiles")
-        .update({ role, sector_id: sectorId, active: true, email_verified: true })
-        .eq("id", userId);
-      if (error) {
-        console.error("authorize fallo", error.message);
-        return jsonResponse({ error: error.message }, 400);
-      }
-      return jsonResponse({ status: "authorized", user_id: userId });
-    }
-
-    if (action === "deactivate") {
-      const userId = body?.user_id as string;
-      if (!userId) {
-        return jsonResponse({ error: "Falta el usuario." }, 400);
-      }
-      if (userId === userData.user.id) {
-        return jsonResponse({ error: "No podes desactivar tu propia cuenta de Propietario." }, 400);
-      }
-      const { error } = await admin.from("profiles").update({ active: false }).eq("id", userId);
-      if (error) {
-        console.error("deactivate fallo", error.message);
-        return jsonResponse({ error: error.message }, 400);
-      }
-      return jsonResponse({ status: "deactivated", user_id: userId });
-    }
-
-    if (action === "reactivate") {
-      const userId = body?.user_id as string;
-      if (!userId) {
-        return jsonResponse({ error: "Falta el usuario." }, 400);
-      }
-      const { error } = await admin.from("profiles").update({ active: true }).eq("id", userId);
-      if (error) {
-        console.error("reactivate fallo", error.message);
-        return jsonResponse({ error: error.message }, 400);
-      }
-      return jsonResponse({ status: "reactivated", user_id: userId });
     }
 
     return jsonResponse({ error: "Accion no soportada." }, 400);

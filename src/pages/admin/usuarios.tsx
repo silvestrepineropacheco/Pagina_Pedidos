@@ -26,7 +26,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { useProfiles, useSectors } from "@/hooks/use-reference-data";
-import { invokeManageUsers } from "@/lib/api";
+import { authorizeProfile, invokeManageUsers, setProfileActive } from "@/lib/api";
 import { roleLabel } from "@/lib/permissions";
 import type { AppRole, Profile } from "@/lib/types";
 
@@ -80,9 +80,15 @@ const UsersPage = () => {
       }
       setInvite(null);
     } catch (inviteError) {
+      const message = inviteError instanceof Error ? inviteError.message : "";
+      const unavailable = /service role|pendiente de configuración/i.test(message);
       toast({
-        title: "No se pudo crear la cuenta",
-        description: inviteError instanceof Error ? inviteError.message : undefined,
+        title: unavailable
+          ? "Crear cuentas desde el panel no está disponible"
+          : "No se pudo crear la cuenta",
+        description: unavailable
+          ? "Pedile a la persona que se registre desde el link de la aplicación y, cuando aparezca en “Cuentas pendientes”, autorizala acá con su rol y sector."
+          : message || undefined,
         variant: "destructive",
       });
     } finally {
@@ -102,14 +108,17 @@ const UsersPage = () => {
     }
     setBusy(true);
     try {
-      await invokeManageUsers({
-        action: "authorize",
-        user_id: authorize.profile.id,
-        role: authorize.role,
-        sector_id: authorize.sector_id || null,
-      });
+      // Actualizacion directa: la base valida en el servidor que seas el Propietario.
+      await authorizeProfile(
+        authorize.profile.id,
+        authorize.role,
+        authorize.sector_id || null,
+      );
       await refresh();
-      toast({ title: "Cuenta autorizada" });
+      toast({
+        title: "Cuenta autorizada",
+        description: `${authorize.profile.email} ya puede ingresar con su rol y sector.`,
+      });
       setAuthorize(null);
     } catch (authorizeError) {
       toast({
@@ -125,10 +134,7 @@ const UsersPage = () => {
   const handleActive = async (profile: Profile) => {
     setBusy(true);
     try {
-      await invokeManageUsers({
-        action: profile.active ? "deactivate" : "reactivate",
-        user_id: profile.id,
-      });
+      await setProfileActive(profile.id, !profile.active);
       await refresh();
       toast({ title: profile.active ? "Cuenta desactivada" : "Cuenta reactivada" });
     } catch (activeError) {
@@ -200,6 +206,15 @@ const UsersPage = () => {
         }
       />
 
+      <div className="rounded-md bg-info-soft p-3 text-xs text-info-soft-foreground">
+        <p className="font-medium">Dos formas de dar acceso</p>
+        <p className="mt-1">
+          1) La persona se registra con el link de la aplicación y queda en “Cuentas pendientes”:
+          autorizala desde acá eligiendo rol y sector. 2) O creá la cuenta directamente con
+          “Crear cuenta” y pasale la contraseña temporal junto con el link.
+        </p>
+      </div>
+
       {error ? (
         <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
       ) : isLoading ? (
@@ -265,8 +280,9 @@ const UsersPage = () => {
           <DialogHeader>
             <DialogTitle>Crear cuenta</DialogTitle>
             <DialogDescription>
-              La cuenta se crea ya autorizada. Si el envío de correo no está configurado, se genera una
-              contraseña temporal para entregar en mano.
+              La cuenta se crea ya autorizada y te devuelve una contraseña temporal para entregar en
+              mano. Si la creación desde el panel no está disponible, usá el otro camino: que la
+              persona se registre y autorizala desde “Cuentas pendientes”.
             </DialogDescription>
           </DialogHeader>
           {invite ? (
