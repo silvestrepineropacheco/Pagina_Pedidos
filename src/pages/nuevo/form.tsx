@@ -40,8 +40,14 @@ import { formatQty } from "@/lib/format";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import type { Priority, RequestCategory } from "@/lib/types";
 import { useCatalog } from "@/hooks/use-reference-data";
-import { ItemEditor } from "./item-editor";
-import { createEmptyItem, type DraftItem } from "./draft-item";
+import { SimpleItemEditor, SizedItemEditor } from "./item-editor";
+import {
+  createEmptyItem,
+  filledSizes,
+  readSpecificationText,
+  sizeRowsFromSpecifications,
+  type DraftItem,
+} from "./draft-item";
 import {
   emptyFormState,
   itemPayload,
@@ -102,7 +108,6 @@ const RequestFormPage = () => {
       equipmentName: request.equipment_name ?? "",
       problem: request.problem ?? "",
       expectedBenefit: request.expected_benefit ?? "",
-      noPurchaseConsequence: request.no_purchase_consequence ?? "",
       currentEquipment: request.current_equipment ?? "",
       technicalSpecs: request.technical_specs ?? "",
       estimatedPrice: request.estimated_price != null ? String(request.estimated_price) : "",
@@ -116,14 +121,11 @@ const RequestFormPage = () => {
               id: item.id,
               catalog_item_id: item.catalog_item_id,
               name: item.name,
-              description: item.description ?? "",
-              specifications: item.specifications ?? {},
-              unit: item.unit ?? "unidades",
-              package_content: item.package_content ?? "",
-              reported_stock: item.reported_stock != null ? String(item.reported_stock) : "",
               requested_qty: String(item.requested_qty),
-              unit_price_estimate:
-                item.unit_price_estimate != null ? String(item.unit_price_estimate) : "",
+              unit: item.unit ?? "unidades",
+              sizes: sizeRowsFromSpecifications(item.specifications),
+              motivo: readSpecificationText(item.specifications, "motivo"),
+              destinatario: readSpecificationText(item.specifications, "destinatario"),
               suggested_url: item.suggested_url ?? "",
               notes: item.notes ?? "",
               photo_path: item.photo_path,
@@ -189,7 +191,6 @@ const RequestFormPage = () => {
               {
                 ...createEmptyItem(),
                 name: state.equipmentName.trim(),
-                description: state.problem.trim(),
                 requested_qty: state.machineryQty,
                 unit: state.machineryUnit,
               },
@@ -503,20 +504,6 @@ const RequestFormPage = () => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="consequence">Consecuencias de no realizarlo</Label>
-              <Textarea
-                id="consequence"
-                value={state.noPurchaseConsequence}
-                onChange={(event) =>
-                  setState((s) => ({ ...s, noPurchaseConsequence: event.target.value }))
-                }
-              />
-              {errors.noPurchaseConsequence ? (
-                <p className="text-xs text-destructive">{errors.noPurchaseConsequence}</p>
-              ) : null}
-            </div>
-
-            <div className="space-y-1.5">
               <Label htmlFor="current_equipment">Equipo actual y estado (si corresponde)</Label>
               <Textarea
                 id="current_equipment"
@@ -543,28 +530,37 @@ const RequestFormPage = () => {
             </div>
           ) : null}
 
-          {state.items.map((item, index) => (
-            <ItemEditor
-              key={item.key}
-              index={index}
-              item={item}
-              category={category}
-              catalog={(catalog ?? []).filter((entry) => entry.category === category)}
-              folder={uploadFolder}
-              onChange={(patch) => updateItem(index, patch)}
-              onRemove={() => {
-                if (item.id) setRemovedItemIds((ids) => [...ids, item.id as string]);
-                setState((previous) => ({
-                  ...previous,
-                  items:
-                    previous.items.length === 1
-                      ? [createEmptyItem()]
-                      : previous.items.filter((_, itemIndex) => itemIndex !== index),
-                }));
-              }}
-              canRemove={state.items.length > 1}
-            />
-          ))}
+          {state.items.map((item, index) => {
+            const ItemEditor = category === "indumentaria" ? SizedItemEditor : SimpleItemEditor;
+            const itemError =
+              errors[`item-${index}-name`] ??
+              errors[`item-${index}-sizes`] ??
+              errors[`item-${index}-qty`] ??
+              errors[`item-${index}-url`];
+            return (
+              <div key={item.key} className="space-y-2">
+                <ItemEditor
+                  index={index}
+                  item={item}
+                  catalog={(catalog ?? []).filter((entry) => entry.category === category)}
+                  folder={uploadFolder}
+                  onChange={(patch) => updateItem(index, patch)}
+                  onRemove={() => {
+                    if (item.id) setRemovedItemIds((ids) => [...ids, item.id as string]);
+                    setState((previous) => ({
+                      ...previous,
+                      items:
+                        previous.items.length === 1
+                          ? [createEmptyItem()]
+                          : previous.items.filter((_, itemIndex) => itemIndex !== index),
+                    }));
+                  }}
+                  canRemove={state.items.length > 1}
+                />
+                {itemError ? <p className="text-xs text-destructive">{itemError}</p> : null}
+              </div>
+            );
+          })}
 
           <Button
             type="button"
@@ -653,17 +649,28 @@ const RequestFormPage = () => {
               <ul className="space-y-2">
                 {state.items
                   .filter((item) => item.name.trim().length > 0)
-                  .map((item, index) => (
-                    <li key={item.key} className="rounded-md border border-border p-3">
-                      <p className="font-medium">
-                        {index + 1}. {item.name}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {formatQty(Number(item.requested_qty))} {item.unit}
-                        {item.package_content ? ` · ${item.package_content}` : ""}
-                      </p>
-                    </li>
-                  ))}
+                  .map((item, index) => {
+                    const talles = filledSizes(item.sizes);
+                    const total = talles.reduce((sum, entry) => sum + entry.cantidad, 0);
+                    return (
+                      <li key={item.key} className="rounded-md border border-border p-3">
+                        <p className="font-medium">
+                          {index + 1}. {item.name}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {formatQty(talles.length > 0 ? total : Number(item.requested_qty))}{" "}
+                          {item.unit}
+                        </p>
+                        {talles.length > 0 ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {talles
+                              .map((entry) => `${entry.talle}: ${formatQty(entry.cantidad)}`)
+                              .join(" · ")}
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
               </ul>
             )}
 

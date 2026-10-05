@@ -5,7 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AuthProvider } from "@/components/auth-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { installGlobalErrorHandlers } from "@/lib/global-errors";
 import { routers } from "./router";
+
+installGlobalErrorHandlers();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,17 +23,17 @@ const queryClient = new QueryClient({
 const App = () => {
   const router = createBrowserRouter(routers);
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <ErrorBoundary>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AuthProvider>
+            <Toaster />
+            <Sonner />
             <RouterProvider router={router} />
-          </ErrorBoundary>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

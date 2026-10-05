@@ -28,39 +28,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // El listener se registra antes de restaurar la sesion.
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
+      // Ningun problema al leer el perfil debe tumbar la sesion ni la pantalla.
+      try {
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
 
-      if (nextSession?.user) {
-        const userId = nextSession.user.id;
-        if (currentUserId.current !== userId) {
-          currentUserId.current = userId;
-          setProfileReady(false);
+        if (nextSession?.user) {
+          const userId = nextSession.user.id;
+          if (currentUserId.current !== userId) {
+            currentUserId.current = userId;
+            setProfileReady(false);
+          }
+          // Llamar al cliente dentro del callback lo bloquea: se difiere.
+          setTimeout(() => {
+            void loadProfile(userId);
+          }, 0);
+        } else {
+          currentUserId.current = null;
+          setProfile(null);
+          setProfileReady(true);
         }
-        // Llamar al cliente dentro del callback lo bloquea: se difiere.
-        setTimeout(() => {
-          void loadProfile(userId);
-        }, 0);
-      } else {
-        currentUserId.current = null;
-        setProfile(null);
+      } catch (error) {
+        console.error("Error al procesar el cambio de sesión:", error);
         setProfileReady(true);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    void supabase.auth.getSession().then(({ data: current }) => {
-      setSession(current.session ?? null);
-      setUser(current.session?.user ?? null);
-      if (current.session?.user) {
-        currentUserId.current = current.session.user.id;
-        void loadProfile(current.session.user.id);
-      } else {
+    void supabase.auth
+      .getSession()
+      .then(({ data: current }) => {
+        setSession(current.session ?? null);
+        setUser(current.session?.user ?? null);
+        if (current.session?.user) {
+          currentUserId.current = current.session.user.id;
+          void loadProfile(current.session.user.id);
+        } else {
+          setProfile(null);
+          setProfileReady(true);
+        }
+      })
+      .catch((error) => {
+        console.error("No se pudo restaurar la sesión:", error);
         setProfile(null);
         setProfileReady(true);
-      }
-      setLoading(false);
-    });
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     return () => data.subscription.unsubscribe();
   }, [loadProfile]);

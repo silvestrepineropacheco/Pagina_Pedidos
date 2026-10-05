@@ -18,6 +18,7 @@ import {
 import { ItemStatusBadge, PriorityBadge, StatusBadge, ToneBadge } from "@/components/badges";
 import { AttachmentList, AttachmentLink } from "@/components/attachments";
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback";
+import { SizeBreakdown } from "@/components/requests/size-breakdown";
 import { ProductLinkButton } from "@/components/product-link";
 import {
   ChangeRequestDialog,
@@ -53,6 +54,7 @@ import {
 import { CHANNELS, EMAIL_STATUS, MACHINERY_TYPES, categoryLabel, labelOf } from "@/lib/constants";
 import { daysSince, formatDate, formatDateTime, formatQty } from "@/lib/format";
 import { createIdempotencyKey } from "@/lib/idempotency";
+import { readSavedSizes } from "@/lib/sizes";
 import { can } from "@/lib/permissions";
 import type { RequestItemRow } from "@/lib/types";
 
@@ -485,7 +487,6 @@ const RequestDetailPage = () => {
             <Field label="Tipo" value={labelOf(MACHINERY_TYPES, request.machinery_type)} />
             <Field label="Problema o necesidad" value={request.problem} />
             <Field label="Beneficio esperado" value={request.expected_benefit} />
-            <Field label="Consecuencias de no realizarlo" value={request.no_purchase_consequence} />
             <Field label="Equipo actual y estado" value={request.current_equipment} />
             <Field label="Especificaciones necesarias" value={request.technical_specs} />
             <Field
@@ -515,15 +516,29 @@ const RequestDetailPage = () => {
                     {item.description ? (
                       <p className="text-sm text-muted-foreground">{item.description}</p>
                     ) : null}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {Object.entries(item.specifications ?? {})
-                        .filter(([, value]) => Boolean(value))
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join(" · ")}
-                    </p>
+                    {(() => {
+                      const specs = item.specifications ?? {};
+                      const motivo =
+                        typeof specs.motivo === "string" ? specs.motivo.trim() : "";
+                      const destinatario =
+                        typeof specs.destinatario === "string" ? specs.destinatario.trim() : "";
+                      if (!motivo && !destinatario) return null;
+                      return (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {[
+                            motivo ? `Motivo: ${motivo}` : null,
+                            destinatario ? `Destino: ${destinatario}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <ItemStatusBadge status={item.item_status} />
                 </div>
+
+                <SizeBreakdown entries={readSavedSizes(item.specifications)} />
 
                 <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
                   <div>

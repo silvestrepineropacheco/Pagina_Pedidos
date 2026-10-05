@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Send, ShieldAlert, PackageCheck, FileWarning } from "lucide-react";
 import { AttachmentUpload } from "@/components/attachments";
@@ -245,6 +245,9 @@ export const ReceiptDialog = ({
   const [lines, setLines] = useState<ReceiptLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(createIdempotencyKey);
+  // Se inicializa una sola vez por apertura: si el pedido se refresca mientras
+  // el formulario está abierto, no se pierden las cantidades ya cargadas.
+  const initialized = useRef(false);
 
   const eligible = useMemo(
     () => items.filter((item) => item.approved_qty > 0 && (pendingById[item.id] ?? item.approved_qty) > 0),
@@ -252,7 +255,12 @@ export const ReceiptDialog = ({
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initialized.current = false;
+      return;
+    }
+    if (initialized.current) return;
+    initialized.current = true;
     setLines(
       eligible.map((item) => ({
         item,

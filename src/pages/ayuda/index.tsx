@@ -141,19 +141,35 @@ const HelpPage = () => {
                 elijas.
               </>,
               <>
-                Completá los datos generales: <strong>fecha para la que lo necesitás</strong>,{" "}
-                <strong>prioridad</strong> y observaciones. Si marcás <strong>Urgente</strong>, el
-                motivo es obligatorio.
+                Completá los datos generales: <strong>fecha para la que lo necesitás</strong>{" "}
+                (obligatoria), prioridad y observaciones. Si marcás <strong>Urgente</strong>, el
+                motivo también es obligatorio.
               </>,
               <>
-                Cargá los artículos. Podés elegir un producto del catálogo o{" "}
-                <strong>“Otro artículo”</strong>. Para cada uno: cantidad, unidad, especificaciones
-                (medida, talle, material, modelo), contenido por presentación (por ejemplo “caja de
-                100 guantes”), stock disponible hoy (opcional, es solo una referencia), enlace del
-                producto sugerido (opcional), foto y observaciones.
-                <span className="mt-1 block text-muted-foreground">
-                  Con <strong>“Agregar otro artículo”</strong> sumás todos los que necesites en el
-                  mismo pedido.
+                Cargá los artículos. El formulario es corto y cambia según la categoría:
+                <span className="mt-1 block space-y-1 text-muted-foreground">
+                  <span className="block">
+                    <strong className="text-foreground">Insumos de producción:</strong> elegís el
+                    producto y la cantidad. Si no está en el catálogo, usá{" "}
+                    <strong className="text-foreground">“Otro artículo”</strong> y escribí cuál
+                    necesitás.
+                  </span>
+                  <span className="block">
+                    <strong className="text-foreground">Indumentaria y equipamiento:</strong> al
+                    elegir el producto aparecen los <strong className="text-foreground">talles</strong>{" "}
+                    para que cargues la cantidad de cada uno. Podés sumar más talles o medidas con{" "}
+                    <strong className="text-foreground">“Agregar otro talle o medida”</strong>. Está
+                    pensado para pedidos al por mayor, no de a una prenda.
+                  </span>
+                  <span className="block">
+                    <strong className="text-foreground">Maquinaria y mejoras:</strong> título, tipo
+                    (nueva, reemplazo, reparación o mejora), problema actual y beneficio esperado. El
+                    precio no es obligatorio.
+                  </span>
+                  <span className="block">
+                    Con <strong className="text-foreground">“Agregar otro artículo”</strong> sumás
+                    todos los que necesites en el mismo pedido.
+                  </span>
                 </span>
               </>,
               <>
@@ -329,8 +345,12 @@ const HelpPage = () => {
                 montos en <strong>pesos</strong>.
               </>,
               <>
-                El <strong>stock que informás</strong> es una foto del momento en que pedís, no un
-                inventario automático.
+                En <strong>indumentaria</strong>, la cantidad total de cada artículo se calcula
+                sumando los talles que cargues: los que queden sin cantidad no se envían.
+              </>,
+              <>
+                La <strong>fecha para la que se necesita</strong> es obligatoria en todos los
+                pedidos, incluso en los borradores.
               </>,
               <>
                 El <strong>enlace sugerido</strong> lo carga el encargado; el{" "}

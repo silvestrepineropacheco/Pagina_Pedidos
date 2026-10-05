@@ -4130,7 +4130,7 @@ export type Database = {
           id: string
           idempotency_key: string
           machinery_type: string | null
-          needed_by: string | null
+          needed_by: string
           no_purchase_consequence: string | null
           notes: string | null
           priority: string
@@ -4160,7 +4160,7 @@ export type Database = {
           id?: string
           idempotency_key: string
           machinery_type?: string | null
-          needed_by?: string | null
+          needed_by: string
           no_purchase_consequence?: string | null
           notes?: string | null
           priority?: string
@@ -4190,7 +4190,7 @@ export type Database = {
           id?: string
           idempotency_key?: string
           machinery_type?: string | null
-          needed_by?: string | null
+          needed_by?: string
           no_purchase_consequence?: string | null
           notes?: string | null
           priority?: string
@@ -4317,7 +4317,7 @@ export type Database = {
           id: string
           idempotency_key: string
           machinery_type: string | null
-          needed_by: string | null
+          needed_by: string
           no_purchase_consequence: string | null
           notes: string | null
           priority: string
@@ -4385,7 +4385,7 @@ export type Database = {
           id: string
           idempotency_key: string
           machinery_type: string | null
-          needed_by: string | null
+          needed_by: string
           no_purchase_consequence: string | null
           notes: string | null
           priority: string
@@ -4494,7 +4494,7 @@ export type Database = {
           id: string
           idempotency_key: string
           machinery_type: string | null
-          needed_by: string | null
+          needed_by: string
           no_purchase_consequence: string | null
           notes: string | null
           priority: string
@@ -4588,7 +4588,7 @@ export type Database = {
           id: string
           idempotency_key: string
           machinery_type: string | null
-          needed_by: string | null
+          needed_by: string
           no_purchase_consequence: string | null
           notes: string | null
           priority: string
