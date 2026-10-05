@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
 import { PageHeader } from "@/components/app-shell";
@@ -39,8 +39,11 @@ interface Line {
 const NewPurchasePage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const preselectedItems = (searchParams.get("items") ?? "").split(",").filter(Boolean);
+  const itemsParam = searchParams.get("items") ?? "";
   const preselectedRequest = searchParams.get("pedido");
+  // Memoizado: si se recalcula en cada render, el efecto de abajo se dispara
+  // en bucle y la pantalla se cae con "Maximum update depth exceeded".
+  const preselectedItems = useMemo(() => itemsParam.split(",").filter(Boolean), [itemsParam]);
 
   const { data: summary, isLoading, error, refetch } = usePendingPurchaseSummary();
   const [lines, setLines] = useState<Line[]>([]);
@@ -55,9 +58,12 @@ const NewPurchasePage = () => {
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [idempotencyKey] = useState(createIdempotencyKey);
+  // Solo se inicializa una vez: un refresco de datos no borra lo ya cargado.
+  const initializedLines = useRef(false);
 
   useEffect(() => {
-    if (!summary) return;
+    if (!summary || initializedLines.current) return;
+    initializedLines.current = true;
     setLines(
       summary.map((row) => ({
         request_item_id: row.request_item_id,
