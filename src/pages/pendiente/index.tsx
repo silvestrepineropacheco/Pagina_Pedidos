@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Clock, LogOut, RefreshCw, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,8 @@ import { ownerSetupPending } from "@/lib/api";
 import { roleLabel } from "@/lib/permissions";
 
 const PendingPage = () => {
-  const { profile, role, refreshProfile, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { profile, role, ready, refreshProfile, signOut } = useAuth();
   const [checking, setChecking] = useState(false);
   const [setupPending, setSetupPending] = useState(false);
 
@@ -18,10 +20,12 @@ const PendingPage = () => {
   }, []);
 
   useEffect(() => {
-    if (profile && profile.role !== "pending" && profile.active) {
-      window.location.replace("/");
+    // Redireccion dentro de la aplicacion (sin recargar la pagina) y solo
+    // cuando ya sabemos con certeza el estado de la cuenta.
+    if (ready && profile && profile.role !== "pending" && profile.active) {
+      navigate("/", { replace: true });
     }
-  }, [profile]);
+  }, [ready, profile, navigate]);
 
   const handleCheck = async () => {
     setChecking(true);

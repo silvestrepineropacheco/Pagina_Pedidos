@@ -55,9 +55,10 @@ const LoginPage = () => {
       if (data.session) {
         toast({
           title: "Cuenta creada",
-          description: "Tu cuenta quedó pendiente de autorización por el Propietario.",
+          description: "Estamos preparando tu acceso.",
         });
-        navigate("/pendiente", { replace: true });
+        // Las guardas de ruta deciden el destino cuando el perfil ya cargó.
+        navigate("/", { replace: true });
       } else {
         toast({
           title: "Revisá tu correo",

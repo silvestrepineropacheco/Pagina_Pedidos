@@ -17,10 +17,12 @@ export const AccessRoute = ({
   children: React.ReactNode;
   requireRole?: "admin" | "owner";
 }) => {
-  const { user, profile, role, loading } = useAuth();
+  const { user, profile, role, ready } = useAuth();
   const location = useLocation();
 
-  if (loading) return <FullPageLoading />;
+  // Mientras no sepamos si hay sesion y perfil, no se redirige: redirigir acá
+  // era lo que producia el rebote infinito entre "/" y "/pendiente".
+  if (!ready) return <FullPageLoading />;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
 
   const withoutAccess = !profile || profile.role === "pending" || !profile.active;
@@ -33,14 +35,12 @@ export const AccessRoute = ({
 };
 
 export const PublicOnlyRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, ready } = useAuth();
 
-  if (loading) return <FullPageLoading />;
-  if (user && profile && profile.role !== "pending" && profile.active) {
+  if (!ready) return <FullPageLoading />;
+  if (!user) return <>{children}</>;
+  if (profile && profile.role !== "pending" && profile.active) {
     return <Navigate to="/" replace />;
   }
-  if (user && (!profile || profile.role === "pending" || !profile.active)) {
-    return <Navigate to="/pendiente" replace />;
-  }
-  return <>{children}</>;
+  return <Navigate to="/pendiente" replace />;
 };

@@ -8,6 +8,8 @@ export interface AuthContextValue {
   profile: Profile | null;
   role: AppRole | null;
   sectorId: string | null;
+  /** true solo cuando ya sabemos si hay sesion y, si la hay, ya llego su perfil. */
+  ready: boolean;
   loading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
