@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Info, Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/app-shell";
 import { ToneBadge } from "@/components/badges";
@@ -27,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCatalog } from "@/hooks/use-reference-data";
-import { CATEGORIES, UNITS, categoryLabel } from "@/lib/constants";
+import { CATEGORIES, UNITS } from "@/lib/constants";
 import { URL_ERROR, isValidHttpUrl } from "@/lib/validation";
 import type { CatalogItem, RequestCategory } from "@/lib/types";
 
@@ -59,13 +59,21 @@ const emptyForm = (): FormState => ({
 const CatalogPage = () => {
   const queryClient = useQueryClient();
   const { data, isLoading, error, refetch } = useCatalog();
-  const [categoryFilter, setCategoryFilter] = useState("todas");
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const items = (data ?? []).filter((item) =>
-    categoryFilter === "todas" ? true : item.category === categoryFilter,
-  );
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return data ?? [];
+    return (data ?? []).filter((item) =>
+      [item.name, item.variant, item.presentation, item.usual_supplier]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [data, search]);
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["catalog"] });
@@ -154,11 +162,47 @@ const CatalogPage = () => {
     }
   };
 
+  const renderItem = (item: CatalogItem) => (
+    <Card key={item.id} className="shadow-card">
+      <CardContent className="space-y-2 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-medium text-foreground">{item.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {item.variant ? item.variant : "Sin variante"}
+              {item.presentation ? ` · ${item.presentation}` : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {item.is_demo ? <ToneBadge tone="neutral">Demostrativo</ToneBadge> : null}
+            <ToneBadge tone={item.active ? "success" : "danger"}>
+              {item.active ? "Activo" : "Inactivo"}
+            </ToneBadge>
+          </div>
+        </div>
+        {item.description ? (
+          <p className="text-sm text-muted-foreground">{item.description}</p>
+        ) : null}
+        {item.usual_supplier ? (
+          <p className="text-xs text-muted-foreground">Proveedor habitual: {item.usual_supplier}</p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
+            Editar
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => void toggleActive(item)}>
+            {item.active ? "Desactivar" : "Reactivar"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="Catálogo de productos"
-        description="Los encargados pueden elegir estos productos o cargar “Otro artículo”. Desactivar no borra el historial."
+        description="Está separado por categoría: cada producto aparece solo en la categoría a la que pertenece."
         actions={
           <Button onClick={() => setForm(emptyForm())}>
             <Plus className="h-4 w-4" />
@@ -167,69 +211,56 @@ const CatalogPage = () => {
         }
       />
 
-      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-        <SelectTrigger className="sm:w-72">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todas">Todas las categorías</SelectItem>
-          {CATEGORIES.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex items-start gap-2 rounded-md bg-info-soft p-3 text-xs text-info-soft-foreground">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          Los pedidos de <strong>insumos</strong> solo muestran productos de Insumos de producción, y
+          los de <strong>indumentaria y equipamiento</strong> solo productos de esa categoría. Si un
+          producto está en la sección equivocada, entrá en <strong>Editar</strong> y cambiá su
+          categoría.
+        </span>
+      </div>
+
+      <Input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Buscar producto"
+        className="sm:max-w-sm"
+      />
 
       {error ? (
         <ErrorState message={(error as Error).message} onRetry={() => void refetch()} />
       ) : isLoading ? (
         <LoadingState />
-      ) : items.length === 0 ? (
+      ) : (data ?? []).length === 0 ? (
         <EmptyState
           title="No hay productos en el catálogo"
           description="Agregá los productos que se compran habitualmente para facilitar las solicitudes."
         />
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {items.map((item) => (
-            <Card key={item.id} className="shadow-card">
-              <CardContent className="space-y-2 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {categoryLabel(item.category)}
-                      {item.variant ? ` · ${item.variant}` : ""}
-                      {item.presentation ? ` · ${item.presentation}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {item.is_demo ? <ToneBadge tone="neutral">Demostrativo</ToneBadge> : null}
-                    <ToneBadge tone={item.active ? "success" : "danger"}>
-                      {item.active ? "Activo" : "Inactivo"}
-                    </ToneBadge>
-                  </div>
+        <div className="space-y-6">
+          {CATEGORIES.map((category) => {
+            const group = filtered.filter((item) => item.category === category.value);
+            return (
+              <section key={category.value} className="space-y-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2">
+                  <h2 className="text-base font-semibold text-foreground">{category.label}</h2>
+                  <span className="text-xs text-muted-foreground">
+                    {group.length} {group.length === 1 ? "producto" : "productos"}
+                  </span>
                 </div>
-                {item.description ? (
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                ) : null}
-                {item.usual_supplier ? (
-                  <p className="text-xs text-muted-foreground">
-                    Proveedor habitual: {item.usual_supplier}
+                {group.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {search.trim()
+                      ? "Ningún producto de esta categoría coincide con la búsqueda."
+                      : "Todavía no hay productos en esta categoría."}
                   </p>
-                ) : null}
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
-                    Editar
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => void toggleActive(item)}>
-                    {item.active ? "Desactivar" : "Reactivar"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">{group.map(renderItem)}</div>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
 
@@ -238,7 +269,7 @@ const CatalogPage = () => {
           <DialogHeader>
             <DialogTitle>{form?.id ? "Editar producto" : "Nuevo producto"}</DialogTitle>
             <DialogDescription>
-              Estos datos ayudan a los encargados a completar el pedido más rápido.
+              La categoría define en qué tipo de pedido aparece este producto.
             </DialogDescription>
           </DialogHeader>
 
@@ -291,6 +322,7 @@ const CatalogPage = () => {
                   id="variant"
                   value={form.variant}
                   onChange={(event) => setForm({ ...form, variant: event.target.value })}
+                  placeholder="Ej.: 40x30x30 cm"
                 />
               </div>
               <div className="space-y-1.5">
@@ -299,7 +331,7 @@ const CatalogPage = () => {
                   id="presentation"
                   value={form.presentation}
                   onChange={(event) => setForm({ ...form, presentation: event.target.value })}
-                  placeholder="Ej.: caja de 100 unidades"
+                  placeholder="Ej.: fardo de 25 unidades"
                 />
               </div>
               <div className="space-y-1.5 sm:col-span-2">

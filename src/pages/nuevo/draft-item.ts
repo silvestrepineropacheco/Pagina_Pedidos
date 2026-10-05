@@ -59,6 +59,18 @@ export const itemFromCatalog = (catalogItem: CatalogItem): DraftItem => ({
 export const sizesTotal = (rows: SizeRow[]): number =>
   rows.reduce((total, row) => total + (Number(row.qty) > 0 ? Number(row.qty) : 0), 0);
 
+/**
+ * Filas iniciales para un producto de insumos: se usa la presentación del
+ * catálogo (por ejemplo "Fardo x 25 unidades") o, si no hay, la medida.
+ * Nunca sugiere talles de indumentaria.
+ */
+export const insumoRowsFromCatalog = (catalogItem: CatalogItem): SizeRow[] => {
+  const descriptor = [catalogItem.presentation, catalogItem.variant]
+    .map((value) => (value ?? "").trim())
+    .find((value) => value.length > 0);
+  return [createSizeRow(descriptor ?? "", "")];
+};
+
 export const filledSizes = (rows: SizeRow[]) =>
   rows
     .filter((row) => row.label.trim().length > 0 && Number(row.qty) > 0)

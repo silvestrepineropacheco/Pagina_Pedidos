@@ -40,7 +40,7 @@ import { formatQty } from "@/lib/format";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import type { Priority, RequestCategory } from "@/lib/types";
 import { useCatalog } from "@/hooks/use-reference-data";
-import { SimpleItemEditor, SizedItemEditor } from "./item-editor";
+import { ItemEditor } from "./item-editor";
 import {
   createEmptyItem,
   filledSizes,
@@ -531,17 +531,16 @@ const RequestFormPage = () => {
           ) : null}
 
           {state.items.map((item, index) => {
-            const ItemEditor = category === "indumentaria" ? SizedItemEditor : SimpleItemEditor;
             const itemError =
               errors[`item-${index}-name`] ??
               errors[`item-${index}-sizes`] ??
-              errors[`item-${index}-qty`] ??
               errors[`item-${index}-url`];
             return (
               <div key={item.key} className="space-y-2">
                 <ItemEditor
                   index={index}
                   item={item}
+                  variant={category === "indumentaria" ? "indumentaria" : "insumos"}
                   catalog={(catalog ?? []).filter((entry) => entry.category === category)}
                   folder={uploadFolder}
                   onChange={(patch) => updateItem(index, patch)}

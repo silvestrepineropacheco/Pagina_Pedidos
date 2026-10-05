@@ -92,13 +92,11 @@ export const validateForm = (
     if (!item.name.trim()) {
       errors[`item-${index}-name`] = "Indicá qué producto necesitás.";
     }
-    if (category === "indumentaria") {
-      if (sizesTotal(item.sizes) <= 0) {
-        errors[`item-${index}-sizes`] =
-          "Cargá la cantidad de al menos un talle o medida.";
-      }
-    } else if (!(Number(item.requested_qty) > 0)) {
-      errors[`item-${index}-qty`] = "La cantidad debe ser mayor a cero.";
+    if (sizesTotal(item.sizes) <= 0) {
+      errors[`item-${index}-sizes`] =
+        category === "indumentaria"
+          ? "Cargá la cantidad de al menos un talle o medida."
+          : "Cargá la cantidad de al menos una medida o presentación.";
     }
     if (!isValidHttpUrl(item.suggested_url || null)) {
       errors[`item-${index}-url`] = URL_ERROR;
@@ -130,13 +128,16 @@ export const itemPayload = (
   index: number,
   category: RequestCategory,
 ): ItemPayload => {
-  const isSized = category === "indumentaria";
-  const total = isSized ? sizesTotal(item.sizes) : Number(item.requested_qty) || 0;
+  const isClothing = category === "indumentaria";
+  const rows = filledSizes(item.sizes);
+  const total = rows.length > 0 ? sizesTotal(item.sizes) : Number(item.requested_qty) || 0;
 
   const specifications: { [key: string]: Json | undefined } = {};
-  if (isSized) {
-    const talles = filledSizes(item.sizes);
-    if (talles.length > 0) specifications.talles = talles;
+  if (rows.length > 0) {
+    // Insumos: medida o presentación. Indumentaria: talle o medida.
+    specifications[isClothing ? "talles" : "variantes"] = rows;
+  }
+  if (isClothing) {
     if (item.motivo.trim()) specifications.motivo = item.motivo.trim();
     if (item.destinatario.trim()) specifications.destinatario = item.destinatario.trim();
   }

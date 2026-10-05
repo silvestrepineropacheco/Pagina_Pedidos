@@ -150,9 +150,11 @@ const HelpPage = () => {
                 <span className="mt-1 block space-y-1 text-muted-foreground">
                   <span className="block">
                     <strong className="text-foreground">Insumos de producción:</strong> elegís el
-                    producto y la cantidad. Si no está en el catálogo, usá{" "}
-                    <strong className="text-foreground">“Otro artículo”</strong> y escribí cuál
-                    necesitás.
+                    producto y cargás la <strong className="text-foreground">cantidad por medida o
+                    presentación</strong> (por ejemplo “Fardo x 25 unidades”). Podés agregar más
+                    renglones con <strong className="text-foreground">“Agregar otra medida o
+                    presentación”</strong>. Si el producto no está en el catálogo, usá{" "}
+                    <strong className="text-foreground">“Otro artículo”</strong> y escribilo a mano.
                   </span>
                   <span className="block">
                     <strong className="text-foreground">Indumentaria y equipamiento:</strong> al
@@ -345,8 +347,15 @@ const HelpPage = () => {
                 montos en <strong>pesos</strong>.
               </>,
               <>
-                En <strong>indumentaria</strong>, la cantidad total de cada artículo se calcula
-                sumando los talles que cargues: los que queden sin cantidad no se envían.
+                El <strong>catálogo está separado por categoría</strong>: en un pedido de insumos
+                solo aparecen insumos, y en indumentaria solo prendas y equipamiento. Si ves un
+                producto en la sección equivocada, un administrador puede cambiarlo desde{" "}
+                <strong>Catálogo → Editar</strong>.
+              </>,
+              <>
+                Tanto en <strong>insumos</strong> como en <strong>indumentaria</strong>, la cantidad
+                total de cada artículo se calcula sumando los renglones que cargues: los que queden
+                sin cantidad no se envían.
               </>,
               <>
                 La <strong>fecha para la que se necesita</strong> es obligatoria en todos los

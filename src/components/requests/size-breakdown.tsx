@@ -1,14 +1,20 @@
 import { formatQty } from "@/lib/format";
 import type { SavedSize } from "@/lib/sizes";
 
-/** Detalle de cantidades por talle o medida de un artículo. */
-export const SizeBreakdown = ({ entries }: { entries: SavedSize[] }) => {
+/** Detalle de cantidades por talle, medida o presentación de un artículo. */
+export const SizeBreakdown = ({
+  entries,
+  label = "Cantidades por talle o medida",
+}: {
+  entries: SavedSize[];
+  label?: string;
+}) => {
   if (entries.length === 0) return null;
   const total = entries.reduce((sum, entry) => sum + entry.cantidad, 0);
   return (
     <div className="mt-2 rounded-md border border-border bg-muted/40 p-2">
       <p className="text-xs font-medium text-muted-foreground">
-        Cantidades por talle o medida (total {formatQty(total)})
+        {label} (total {formatQty(total)})
       </p>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
         {entries.map((entry) => (

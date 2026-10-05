@@ -538,7 +538,14 @@ const RequestDetailPage = () => {
                   <ItemStatusBadge status={item.item_status} />
                 </div>
 
-                <SizeBreakdown entries={readSavedSizes(item.specifications)} />
+                <SizeBreakdown
+                  entries={readSavedSizes(item.specifications)}
+                  label={
+                    request.category === "insumos"
+                      ? "Cantidades por medida o presentación"
+                      : "Cantidades por talle o medida"
+                  }
+                />
 
                 <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
                   <div>
