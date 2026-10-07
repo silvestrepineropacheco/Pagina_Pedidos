@@ -253,6 +253,14 @@ export const fetchPendingPurchaseSummary = () =>
 
 /* --------------------------------- Recepciones --------------------------------- */
 
+export const fetchAllReceiptItems = () =>
+  run<ReceiptItemRow[]>(db().from("receipt_items").select("*").limit(4000));
+
+export const fetchAllReceipts = () =>
+  run<ReceiptRow[]>(
+    db().from("receipts").select("*").order("created_at", { ascending: false }).limit(2000),
+  );
+
 export const fetchReceipts = (requestId: string) =>
   run<ReceiptRow[]>(
     db().from("receipts").select("*").eq("request_id", requestId).order("created_at", { ascending: false }),
@@ -267,6 +275,40 @@ export const fetchReceiptItemsByReceiptIds = (receiptIds: string[]) =>
 
 export const registerReceipt = (payload: Json, idempotencyKey: string) =>
   run<ReceiptRow>(db().rpc("register_receipt", { p_payload: payload, p_idempotency_key: idempotencyKey }));
+
+/**
+ * Confirmacion simplificada de recepcion.
+ * mode "complete": llego todo lo aprobado (no se cargan cantidades).
+ * mode "partial": se indican los articulos y cantidades que llegaron.
+ */
+export const confirmReceipt = ({
+  requestId,
+  mode,
+  receivedAt,
+  notes,
+  photoPath,
+  items,
+  idempotencyKey,
+}: {
+  requestId: string;
+  mode: "complete" | "partial";
+  receivedAt: string | null;
+  notes?: string | null;
+  photoPath?: string | null;
+  items?: { request_item_id: string; qty_accepted: number }[] | null;
+  idempotencyKey: string;
+}) =>
+  run<ReceiptRow>(
+    db().rpc("confirm_receipt", {
+      p_request_id: requestId,
+      p_mode: mode,
+      p_received_at: receivedAt,
+      p_notes: notes ?? null,
+      p_photo_path: photoPath ?? null,
+      p_items: (items ?? null) as Json,
+      p_idempotency_key: idempotencyKey,
+    }),
+  );
 
 /* ------------------------ Notificaciones y preferencias ------------------------ */
 

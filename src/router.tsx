@@ -7,6 +7,7 @@ import PurchaseDetailPage from "./pages/admin/compras/detalle";
 import PurchasesPage from "./pages/admin/compras";
 import NewPurchasePage from "./pages/admin/compras/nueva";
 import PurchasePendingPage from "./pages/admin/pendientes-compra";
+import ReceivedOrdersPage from "./pages/admin/recibidos";
 import ReportsPage from "./pages/admin/reportes";
 import ChangeReviewPage from "./pages/admin/revision-cambios";
 import UsersPage from "./pages/admin/usuarios";
@@ -132,6 +133,15 @@ export const routers = [
     element: (
       <AccessRoute requireRole="admin">
         <ChangeReviewPage />
+      </AccessRoute>
+    ),
+  },
+  {
+    path: "/admin/recibidos",
+    name: "admin-pedidos-recibidos",
+    element: (
+      <AccessRoute requireRole="admin">
+        <ReceivedOrdersPage />
       </AccessRoute>
     ),
   },

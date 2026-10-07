@@ -4400,6 +4400,30 @@ export type Database = {
           urgency_reason: string | null
         }
       }
+      confirm_receipt: {
+        Args: {
+          p_idempotency_key?: string
+          p_items?: Json
+          p_mode: string
+          p_notes?: string
+          p_photo_path?: string
+          p_received_at?: string
+          p_request_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          folio: string | null
+          id: string
+          idempotency_key: string
+          notes: string | null
+          photo_path: string | null
+          purchase_id: string | null
+          received_at: string
+          received_by_name: string | null
+          request_id: string
+        }
+      }
       has_app_access: {
         Args: Record<PropertyKey, never>
         Returns: boolean

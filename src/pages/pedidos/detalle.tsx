@@ -23,6 +23,7 @@ import { SizeBreakdown } from "@/components/requests/size-breakdown";
 import { ProductLinkButton } from "@/components/product-link";
 import {
   ChangeRequestDialog,
+  ConfirmReceiptDialog,
   CloseBalanceDialog,
   ReceiptDialog,
   RequestInfoDialog,
@@ -80,7 +81,8 @@ const RequestDetailPage = () => {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [changeItem, setChangeItem] = useState<RequestItemRow | null>(null);
   const [changeOpen, setChangeOpen] = useState(false);
-  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [detailedOpen, setDetailedOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [changeToResolve, setChangeToResolve] = useState<string | null>(null);
@@ -435,11 +437,16 @@ const RequestDetailPage = () => {
               </Button>
             ) : null}
 
-            {request.submitted_at && items.some((item) => item.approved_qty > 0) ? (
-              <Button size="sm" variant="outline" onClick={() => setReceiptOpen(true)}>
-                <PackageCheck className="h-4 w-4" />
-                Registrar recepción
-              </Button>
+            {request.submitted_at && aggregates.pendingTotal > 0 ? (
+              <>
+                <Button size="sm" onClick={() => setConfirmOpen(true)}>
+                  <PackageCheck className="h-4 w-4" />
+                  Confirmar recepción
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setDetailedOpen(true)}>
+                  Registrar con detalle
+                </Button>
+              </>
             ) : null}
 
             {isAdmin && aggregates.pendingTotal > 0 ? (
@@ -466,6 +473,18 @@ const RequestDetailPage = () => {
           </div>
         </CardContent>
       </Card>
+
+      {request.status === "purchased_pending_receipt" ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-warning-soft p-3 text-sm text-warning-soft-foreground">
+          <span>
+            La compra ya está registrada. Cuando llegue la mercadería, confirmá la recepción: no hace
+            falta volver a cargar proveedor, precios, enlaces ni artículos.
+          </span>
+          <Button size="sm" variant="outline" onClick={() => setConfirmOpen(true)}>
+            Confirmar recepción
+          </Button>
+        </div>
+      ) : null}
 
       {pendingChange ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-warning-soft p-3 text-sm text-warning-soft-foreground">
@@ -887,9 +906,18 @@ const RequestDetailPage = () => {
         userId={user?.id ?? ""}
       />
 
+      <ConfirmReceiptDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        requestId={request.id}
+        items={items}
+        pendingById={aggregates.pendingById}
+        onDetailed={() => setDetailedOpen(true)}
+      />
+
       <ReceiptDialog
-        open={receiptOpen}
-        onOpenChange={setReceiptOpen}
+        open={detailedOpen}
+        onOpenChange={setDetailedOpen}
         requestId={request.id}
         items={items}
         pendingById={aggregates.pendingById}

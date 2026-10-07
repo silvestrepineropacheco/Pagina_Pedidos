@@ -28,6 +28,7 @@ import {
   applyChangeRequest,
   approveItem,
   closeRequestBalance,
+  confirmReceipt,
   createChangeRequest,
   markItemNeedsInfo,
   refreshRequestAfterReview,
@@ -212,6 +213,257 @@ export const ChangeRequestDialog = ({
             Registrar propuesta
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/* --------------------------- Confirmar recepción (simple) --------------------------- */
+
+/**
+ * Flujo simple despues de registrar la compra:
+ *   "¿Este pedido ya llegó?"  ->  completo / parcialmente
+ * No vuelve a pedir proveedor, precios, enlaces ni articulos: todo eso ya quedo
+ * guardado en el registro de compra.
+ */
+export const ConfirmReceiptDialog = ({
+  open,
+  onOpenChange,
+  requestId,
+  items,
+  pendingById,
+  onDetailed,
+}: {
+  open: boolean;
+  onOpenChange: (value: boolean) => void;
+  requestId: string;
+  items: RequestItemRow[];
+  pendingById: Record<string, number>;
+  onDetailed: () => void;
+}) => {
+  const queryClient = useQueryClient();
+  const [mode, setMode] = useState<"ask" | "complete" | "partial">("ask");
+  const [receivedAt, setReceivedAt] = useState(todayInTimeZone());
+  const [notes, setNotes] = useState("");
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
+  const [partial, setPartial] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState(createIdempotencyKey);
+  const initialized = useRef(false);
+
+  const pendientes = items.filter(
+    (item) => item.approved_qty > 0 && (pendingById[item.id] ?? item.approved_qty) > 0,
+  );
+
+  useEffect(() => {
+    if (!open) {
+      initialized.current = false;
+      setMode("ask");
+      return;
+    }
+    if (initialized.current) return;
+    initialized.current = true;
+    setReceivedAt(todayInTimeZone());
+    setNotes("");
+    setPhotoPath(null);
+    setIdempotencyKey(createIdempotencyKey());
+    setPartial(
+      Object.fromEntries(
+        items
+          .filter((item) => item.approved_qty > 0 && (pendingById[item.id] ?? item.approved_qty) > 0)
+          .map((item) => [item.id, String(pendingById[item.id] ?? item.approved_qty)]),
+      ),
+    );
+  }, [open, items, pendingById]);
+
+  const handleConfirm = async () => {
+    if (saving || mode === "ask") return;
+
+    const lines =
+      mode === "complete"
+        ? null
+        : pendientes
+            .map((item) => ({
+              request_item_id: item.id,
+              qty_accepted: Number(partial[item.id] ?? 0),
+            }))
+            .filter((line) => line.qty_accepted > 0);
+
+    if (mode === "partial" && (lines ?? []).length === 0) {
+      toast({
+        title: "Indicá qué cantidades llegaron",
+        description: "Cargá al menos un artículo con cantidad recibida.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await confirmReceipt({
+        requestId,
+        mode,
+        receivedAt,
+        notes: notes.trim() || null,
+        photoPath,
+        items: lines,
+        idempotencyKey,
+      });
+      await invalidate(queryClient, requestId);
+      toast({
+        title: mode === "complete" ? "Pedido recibido" : "Recepción parcial registrada",
+        description:
+          mode === "complete"
+            ? "El pedido quedó como “Recibido” y ya aparece en Pedidos recibidos."
+            : "Lo que quedó pendiente sigue registrado: el pedido queda como “Recibido parcialmente”.",
+      });
+      onOpenChange(false);
+    } catch (error) {
+      showError(error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
+        {mode === "ask" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>¿Este pedido ya llegó?</DialogTitle>
+              <DialogDescription>
+                Solo tenés que confirmarlo: el proveedor, los precios, los enlaces y los artículos ya
+                quedaron guardados cuando registraste la compra.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Button
+                className="h-auto w-full justify-start px-4 py-3 text-left"
+                variant="success"
+                onClick={() => setMode("complete")}
+              >
+                <div>
+                  <p className="font-medium">Sí, llegó completo</p>
+                  <p className="text-xs opacity-90">Se recibe todo lo aprobado.</p>
+                </div>
+              </Button>
+              <Button
+                className="h-auto w-full justify-start px-4 py-3 text-left"
+                variant="outline"
+                onClick={() => setMode("partial")}
+              >
+                <div>
+                  <p className="font-medium">Llegó parcialmente</p>
+                  <p className="text-xs text-muted-foreground">
+                    Indicás qué llegó y qué queda pendiente.
+                  </p>
+                </div>
+              </Button>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                onClick={() => {
+                  onOpenChange(false);
+                  onDetailed();
+                }}
+              >
+                Necesito registrar con detalle (faltantes, incorrectos o dañados)
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>
+                {mode === "complete" ? "Confirmar que llegó completo" : "Confirmar recepción parcial"}
+              </DialogTitle>
+              <DialogDescription>
+                {mode === "complete"
+                  ? "Se registra la recepción de todo lo aprobado."
+                  : "Cargá las cantidades que llegaron; el saldo pendiente se calcula solo."}
+              </DialogDescription>
+            </DialogHeader>
+
+            {mode === "partial" ? (
+              <div className="space-y-3">
+                {pendientes.map((item) => {
+                  const pending = pendingById[item.id] ?? item.approved_qty;
+                  const received = Number(partial[item.id] ?? 0);
+                  const remaining = Math.max(pending - (received > 0 ? received : 0), 0);
+                  return (
+                    <div key={item.id} className="rounded-md border border-border p-3">
+                      <p className="font-medium text-foreground">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pendiente: {formatQty(pending)} {item.unit ?? ""}
+                      </p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Cantidad que llegó</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
+                            value={partial[item.id] ?? ""}
+                            onChange={(event) =>
+                              setPartial((previous) => ({
+                                ...previous,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Queda pendiente</Label>
+                          <Input value={formatQty(remaining)} readOnly disabled />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm_received_at">Fecha de recepción</Label>
+                <Input
+                  id="confirm_received_at"
+                  type="date"
+                  value={receivedAt}
+                  onChange={(event) => setReceivedAt(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Remito o comprobante (opcional)</Label>
+                <AttachmentUpload
+                  folder={`requests/${requestId}`}
+                  label={photoPath ? "Reemplazar remito" : "Adjuntar remito"}
+                  onUploaded={setPhotoPath}
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="confirm_notes">Observaciones (opcional)</Label>
+                <Textarea
+                  id="confirm_notes"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setMode("ask")} disabled={saving}>
+                Volver
+              </Button>
+              <Button onClick={handleConfirm} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
+                Confirmar recepción
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

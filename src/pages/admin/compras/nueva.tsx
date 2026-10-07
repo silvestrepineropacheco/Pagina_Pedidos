@@ -34,6 +34,7 @@ interface Line {
   unitPrice: string;
   productUrl: string;
   folio: string;
+  requestId: string;
 }
 
 const NewPurchasePage = () => {
@@ -77,6 +78,7 @@ const NewPurchasePage = () => {
         unitPrice: "",
         productUrl: "",
         folio: row.folio,
+        requestId: row.request_id,
       })),
     );
   }, [summary, preselectedItems, preselectedRequest]);
@@ -156,8 +158,18 @@ const NewPurchasePage = () => {
         }
       }
 
-      toast({ title: "Compra registrada", description: `Número ${purchase.folio}` });
-      navigate(`/admin/compras/${purchase.id}`);
+      const involvedRequests = [...new Set(selectedLines.map((line) => line.requestId))];
+      toast({
+        title: `Compra ${purchase.folio ?? ""} registrada`,
+        description:
+          "El pedido quedó como “Compra realizada — esperando recepción”. Solo resta confirmar la llegada.",
+      });
+      // Se va directo al pedido para que la unica accion pendiente sea confirmar la recepcion.
+      navigate(
+        involvedRequests.length === 1
+          ? `/pedidos/${involvedRequests[0]}`
+          : `/admin/compras/${purchase.id}`,
+      );
     } catch (purchaseError) {
       toast({
         title: "No se pudo registrar la compra",
