@@ -2,7 +2,7 @@ import type { DraftItem } from "./draft-item";
 import { createEmptyItem, filledSizes, sizesTotal } from "./draft-item";
 import type { Json } from "@/integrations/supabase/types";
 import type { Priority, RequestCategory } from "@/lib/types";
-import { URL_ERROR, isValidHttpUrl } from "@/lib/validation";
+import { normalizeUrl } from "@/lib/validation";
 
 export type MachineryType = "nueva" | "reemplazo" | "reparacion" | "mejora";
 
@@ -82,9 +82,6 @@ export const validateForm = (
     if (!state.problem.trim()) errors.problem = "Contá cuál es el problema o la necesidad actual.";
     if (!state.expectedBenefit.trim()) errors.expectedBenefit = "Indicá el beneficio esperado.";
     if (!(Number(state.machineryQty) > 0)) errors.machineryQty = "La cantidad debe ser mayor a cero.";
-    if (!isValidHttpUrl(state.machineryUrl || null)) {
-      errors.machineryUrl = "El enlace debe empezar con http:// o https://";
-    }
     return errors;
   }
 
@@ -105,9 +102,7 @@ export const validateForm = (
           ? "Cargá la cantidad de al menos un talle o medida."
           : "Cargá la cantidad de al menos una medida o presentación.";
     }
-    if (!isValidHttpUrl(item.suggested_url || null)) {
-      errors[`item-${index}-url`] = URL_ERROR;
-    }
+    // El enlace del producto es opcional: nunca bloquea el envio.
   });
 
   return errors;
@@ -162,7 +157,7 @@ export const itemPayload = (
     reported_stock: null,
     requested_qty: total,
     unit_price_estimate: null,
-    suggested_url: item.suggested_url.trim() || null,
+    suggested_url: normalizeUrl(item.suggested_url),
     notes: item.notes.trim() || null,
     photo_path: item.photo_path,
     line_no: index + 1,

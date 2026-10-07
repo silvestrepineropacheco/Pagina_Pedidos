@@ -28,7 +28,7 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCatalog } from "@/hooks/use-reference-data";
 import { CATEGORIES, UNITS } from "@/lib/constants";
-import { URL_ERROR, isValidHttpUrl } from "@/lib/validation";
+import { URL_WARNING, normalizeUrl, urlHint } from "@/lib/validation";
 import type { CatalogItem, RequestCategory } from "@/lib/types";
 
 interface FormState {
@@ -99,10 +99,6 @@ const CatalogPage = () => {
       toast({ title: "El nombre es obligatorio", variant: "destructive" });
       return;
     }
-    if (!isValidHttpUrl(form.usual_url) || !isValidHttpUrl(form.image_url)) {
-      toast({ title: "Enlace inválido", description: URL_ERROR, variant: "destructive" });
-      return;
-    }
     setSaving(true);
     try {
       const payload = {
@@ -112,9 +108,9 @@ const CatalogPage = () => {
         variant: form.variant.trim() || null,
         unit: form.unit.trim() || null,
         presentation: form.presentation.trim() || null,
-        image_url: form.image_url.trim() || null,
+        image_url: normalizeUrl(form.image_url),
         usual_supplier: form.usual_supplier.trim() || null,
-        usual_url: form.usual_url.trim() || null,
+        usual_url: normalizeUrl(form.usual_url),
         updated_at: new Date().toISOString(),
       };
       if (form.id) {
@@ -356,8 +352,23 @@ const CatalogPage = () => {
                   id="usual_url"
                   value={form.usual_url}
                   onChange={(event) => setForm({ ...form, usual_url: event.target.value })}
-                  placeholder="https://..."
+                  placeholder="Opcional: https://..."
                 />
+                {(() => {
+                  const hint = urlHint(form.usual_url);
+                  if (!hint) return null;
+                  return (
+                    <p
+                      className={
+                        hint.text === URL_WARNING
+                          ? "text-xs text-warning-soft-foreground"
+                          : "text-xs text-muted-foreground"
+                      }
+                    >
+                      {hint.text}
+                    </p>
+                  );
+                })()}
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="image_url">Imagen (URL opcional)</Label>

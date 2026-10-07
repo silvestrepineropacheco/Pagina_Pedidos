@@ -21,6 +21,7 @@ import { registerPurchase, updatePurchase } from "@/lib/api";
 import { CHANNELS } from "@/lib/constants";
 import { formatCurrency, formatQty, todayInTimeZone } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
+import { normalizeUrl } from "@/lib/validation";
 import { syncInBackground } from "@/lib/integrations";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import { uploadAttachment } from "@/lib/storage";
@@ -141,7 +142,7 @@ const NewPurchasePage = () => {
             qty: Number(line.qty),
             unit_price: line.unitPrice === "" ? null : Number(line.unitPrice),
             currency: "ARS",
-            product_url: line.productUrl.trim() || null,
+            product_url: normalizeUrl(line.productUrl),
           })),
         },
         idempotencyKey,

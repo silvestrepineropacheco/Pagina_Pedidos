@@ -39,6 +39,7 @@ import {
 import { CATEGORIES, MACHINERY_TYPES, UNITS, categoryLabel, labelOf } from "@/lib/constants";
 import { formatCurrency, formatDate, formatQty } from "@/lib/format";
 import { SAVE_ERROR_MESSAGE, friendlyError } from "@/lib/errors";
+import { URL_WARNING, urlHint } from "@/lib/validation";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import { syncInBackground } from "@/lib/integrations";
 import type { Priority, RequestCategory } from "@/lib/types";
@@ -567,12 +568,26 @@ const RequestFormPage = () => {
                 id="machinery_url"
                 value={state.machineryUrl}
                 onChange={(event) => setState((s) => ({ ...s, machineryUrl: event.target.value }))}
-                placeholder="https://... (Mercado Libre, proveedor o tienda)"
-                aria-invalid={Boolean(errors.machineryUrl)}
+                placeholder="Opcional: https://... (Mercado Libre, proveedor o tienda)"
               />
-              {errors.machineryUrl ? (
-                <p className="text-xs text-destructive">{errors.machineryUrl}</p>
-              ) : null}
+              {(() => {
+                const hint = urlHint(state.machineryUrl);
+                if (!hint) return null;
+                return (
+                  <p
+                    className={
+                      hint.text === URL_WARNING
+                        ? "text-xs text-warning-soft-foreground"
+                        : "text-xs text-muted-foreground"
+                    }
+                  >
+                    {hint.text}
+                  </p>
+                );
+              })()}
+              <p className="text-xs text-muted-foreground">
+                El enlace es opcional: podés enviar el pedido sin completarlo.
+              </p>
             </div>
 
             <div className="space-y-2 sm:col-span-2">

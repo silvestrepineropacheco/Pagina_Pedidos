@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EQUIPMENT_REASONS, UNITS, catalogItemLabel } from "@/lib/constants";
 import { formatQty } from "@/lib/format";
 import type { CatalogItem } from "@/lib/types";
-import { URL_ERROR, isValidHttpUrl } from "@/lib/validation";
+import { URL_WARNING, urlHint } from "@/lib/validation";
 import {
   createSizeRow,
   insumoRowsFromCatalog,
@@ -57,7 +57,7 @@ const ItemEditorBase = ({
     [onChangeItem, index],
   );
   const isClothing = variant === "indumentaria";
-  const urlInvalid = !isValidHttpUrl(item.suggested_url || null);
+  const linkHint = urlHint(item.suggested_url);
   const total = sizesTotal(item.sizes);
 
   const rowWord = isClothing ? "talle o medida" : "medida o presentación";
@@ -307,10 +307,17 @@ const ItemEditorBase = ({
             id={`url-${item.key}`}
             value={item.suggested_url}
             onChange={(event) => apply({ suggested_url: event.target.value })}
-            placeholder="https://..."
-            aria-invalid={urlInvalid}
+            placeholder="Opcional: https://... (Mercado Libre, proveedor o tienda)"
           />
-          {urlInvalid ? <p className="text-xs text-destructive">{URL_ERROR}</p> : null}
+          {linkHint ? (
+            <p
+              className={
+                linkHint.text === URL_WARNING ? "text-xs text-warning-soft-foreground" : "text-xs text-muted-foreground"
+              }
+            >
+              {linkHint.text}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">
