@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { friendlyError } from "@/lib/errors";
+import { syncInBackground } from "@/lib/integrations";
 import {
   addComment,
   applyChangeRequest,
@@ -309,6 +310,7 @@ export const ConfirmReceiptDialog = ({
         items: lines,
         idempotencyKey,
       });
+      syncInBackground(requestId, mode === "complete" ? "completed" : "partially_received");
       await invalidate(queryClient, requestId);
       toast({
         title: mode === "complete" ? "Pedido recibido" : "Recepción parcial registrada",
@@ -579,6 +581,10 @@ export const ReceiptDialog = ({
 
     setSaving(true);
     try {
+      const fullyReceived = lines.every(
+        (line) =>
+          Number(line.accepted || 0) >= (pendingById[line.item.id] ?? line.item.approved_qty),
+      );
       await registerReceipt(
         {
           request_id: requestId,
@@ -590,6 +596,7 @@ export const ReceiptDialog = ({
         },
         idempotencyKey,
       );
+      syncInBackground(requestId, fullyReceived ? "completed" : "partially_received");
       await invalidate(queryClient, requestId);
       toast({
         title: "Recepción registrada",
@@ -806,7 +813,8 @@ export const ReviewItemDialog = ({
       } else {
         await markItemNeedsInfo(item.id, userId, reason.trim());
       }
-      await refreshRequestAfterReview(requestId);
+      const reviewed = await refreshRequestAfterReview(requestId);
+      syncInBackground(requestId, reviewed?.status ?? "pending_review");
       await invalidate(queryClient, requestId);
       toast({
         title:

@@ -21,6 +21,7 @@ import { registerPurchase, updatePurchase } from "@/lib/api";
 import { CHANNELS } from "@/lib/constants";
 import { formatCurrency, formatQty, todayInTimeZone } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
+import { syncInBackground } from "@/lib/integrations";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import { uploadAttachment } from "@/lib/storage";
 
@@ -159,6 +160,9 @@ const NewPurchasePage = () => {
       }
 
       const involvedRequests = [...new Set(selectedLines.map((line) => line.requestId))];
+      for (const involved of involvedRequests) {
+        syncInBackground(involved, "purchased_pending_receipt");
+      }
       toast({
         title: `Compra ${purchase.folio ?? ""} registrada`,
         description:

@@ -379,6 +379,26 @@ export const sendRequestEmails = async (requestId: string): Promise<EmailSendRes
   return (data ?? {}) as EmailSendResult;
 };
 
+export interface IntegrationLogRow {
+  id: string;
+  request_id: string;
+  event: string;
+  channel: string;
+  status: string;
+  detail: string | null;
+  external_id: string | null;
+  updated_at: string;
+}
+
+export const fetchIntegrationLog = (requestId: string) =>
+  run<IntegrationLogRow[]>(
+    db()
+      .from("integration_sync_log")
+      .select("*")
+      .eq("request_id", requestId)
+      .order("updated_at", { ascending: false }),
+  );
+
 export const fetchEmailMessages = (requestId: string) =>
   run<EmailMessageRow[]>(
     db().from("email_messages").select("*").eq("request_id", requestId).order("created_at"),

@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Loader2,
   ArrowLeft,
   CalendarClock,
   CheckCircle2,
@@ -48,6 +49,7 @@ import { useRequestBundle } from "@/hooks/use-requests";
 import {
   addComment,
   assignRequest,
+  fetchIntegrationLog,
   createDraftRequest,
   insertRequestItems,
   sendRequestEmails,
@@ -56,6 +58,7 @@ import {
 import { CHANNELS, EMAIL_STATUS, MACHINERY_TYPES, categoryLabel, labelOf } from "@/lib/constants";
 import { daysSince, formatDate, formatDateTime, formatQty } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
+import { eventFromStatus, syncInBackground, syncOrderToGoogle } from "@/lib/integrations";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import { readSavedSizes } from "@/lib/sizes";
 import { can } from "@/lib/permissions";
@@ -86,6 +89,7 @@ const RequestDetailPage = () => {
   const [closeOpen, setCloseOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [changeToResolve, setChangeToResolve] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const request = bundle?.request;
   const items = useMemo(() => bundle?.items ?? [], [bundle]);
@@ -124,6 +128,43 @@ const RequestDetailPage = () => {
 
   const pendingChange = (bundle?.changes ?? []).find((change) => change.status === "pending");
 
+  const integrationLog = useQuery({
+    queryKey: ["integration-log", id],
+    enabled: Boolean(id) && isAdmin,
+    queryFn: () => fetchIntegrationLog(id as string),
+  });
+
+  const handleSyncNow = async () => {
+    if (!id || !request) return;
+    const event = eventFromStatus(request.status);
+    if (!event) {
+      toast({
+        title: "Sin sincronización para este estado",
+        description: "Los borradores no se envían a Gmail, Drive ni Sheets.",
+      });
+      return;
+    }
+    setSyncing(true);
+    try {
+      const result = await syncOrderToGoogle(id, event);
+      await integrationLog.refetch();
+      const channels = result.channels ?? {};
+      const summary = Object.entries(channels)
+        .map(([channel, value]) => `${channel}: ${value.status}`)
+        .join(" · ");
+      toast({
+        title: result.ok ? `Sincronizado (${event})` : "No se pudo sincronizar",
+        description:
+          summary ||
+          result.error ||
+          "Revisá el detalle de integraciones en esta misma pantalla.",
+        variant: result.ok && summary.includes("failed") ? "destructive" : undefined,
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["request-bundle", id] });
     await queryClient.invalidateQueries({ queryKey: ["requests"] });
@@ -156,7 +197,8 @@ const RequestDetailPage = () => {
     if (!id) return;
     setBusy(true);
     try {
-      await submitRequest(id);
+      const submitted = await submitRequest(id);
+      syncInBackground(submitted.id, submitted.status);
       try {
         await sendRequestEmails(id);
       } catch {
@@ -782,6 +824,57 @@ const RequestDetailPage = () => {
                 </ul>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isAdmin ? (
+        <Card className="shadow-card">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">
+              Integraciones: Gmail, Drive y Sheets
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={() => void handleSyncNow()} disabled={syncing}>
+              {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Sincronizar ahora
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Aviso por correo a los administradores, registro en la planilla y archivo de
+              comprobantes y adjuntos en Drive. Un reintento no duplica avisos ni filas.
+            </p>
+            {(integrationLog.data ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Todavía no hay sincronizaciones para este pedido.
+              </p>
+            ) : (
+              (integrationLog.data ?? []).map((row) => (
+                <div
+                  key={row.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-xs"
+                >
+                  <span className="font-medium">
+                    {row.channel === "gmail"
+                      ? "Gmail"
+                      : row.channel === "drive"
+                        ? "Google Drive"
+                        : "Google Sheets"}{" "}
+                    · {row.event}
+                  </span>
+                  <ToneBadge
+                    tone={
+                      row.status === "ok" ? "success" : row.status === "skipped" ? "neutral" : "danger"
+                    }
+                  >
+                    {row.status === "ok" ? "Listo" : row.status === "skipped" ? "Ya estaba" : "Falló"}
+                  </ToneBadge>
+                  {row.detail ? (
+                    <span className="w-full text-muted-foreground">{row.detail}</span>
+                  ) : null}
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       ) : null}

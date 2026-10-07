@@ -3606,6 +3606,79 @@ export type Database = {
           },
         ]
       }
+      integration_sync_log: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          detail: string | null
+          event: string
+          external_id: string | null
+          id: string
+          request_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          channel: string
+          created_at?: string
+          detail?: string | null
+          event: string
+          external_id?: string | null
+          id?: string
+          request_id: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          detail?: string | null
+          event?: string
+          external_id?: string | null
+          id?: string
+          request_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_sync_log_request_id_fkey"
+            columns: ["request_id"]
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_targets: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          kind: string
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          kind: string
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          kind?: string
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null

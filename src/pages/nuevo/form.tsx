@@ -40,6 +40,7 @@ import { CATEGORIES, MACHINERY_TYPES, UNITS, categoryLabel, labelOf } from "@/li
 import { formatCurrency, formatDate, formatQty } from "@/lib/format";
 import { SAVE_ERROR_MESSAGE, friendlyError } from "@/lib/errors";
 import { createIdempotencyKey } from "@/lib/idempotency";
+import { syncInBackground } from "@/lib/integrations";
 import type { Priority, RequestCategory } from "@/lib/types";
 import { AttachmentList, AttachmentManager } from "@/components/attachments";
 import { ErrorState } from "@/components/feedback";
@@ -285,6 +286,8 @@ const RequestFormPage = () => {
       }
       const submitted = await submitRequest(id);
       setSummaryOpen(false);
+      // Refleja el pedido en Gmail, Drive y Sheets sin bloquear el envio.
+      syncInBackground(submitted.id, submitted.status);
 
       try {
         const result = await sendRequestEmails(id);
