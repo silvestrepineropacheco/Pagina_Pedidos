@@ -682,7 +682,9 @@ const RequestDetailPage = () => {
                     <ProductLinkButton url={item.purchase_url} label="Abrir enlace de la compra" />
                   ) : null}
                   {item.photo_path ? <AttachmentLink path={item.photo_path} label="Ver foto" /> : null}
-                  {isAdmin && request.submitted_at ? (
+                  {isAdmin &&
+                  request.submitted_at &&
+                  (item.item_status === "pending" || item.item_status === "needs_info") ? (
                     <>
                       <Button
                         size="sm"
@@ -707,6 +709,18 @@ const RequestDetailPage = () => {
                         Rechazar
                       </Button>
                     </>
+                  ) : null}
+                  {item.item_status === "approved" || item.item_status === "rejected" ? (
+                    <span className="text-xs text-muted-foreground">
+                      {item.item_status === "approved"
+                        ? `Aprobado · cantidad ${formatQty(item.approved_qty)}`
+                        : "Rechazado"}
+                      {item.approved_at ? ` · ${formatDateTime(item.approved_at)}` : ""}
+                      {item.approved_by
+                        ? ` · ${personName(item.approved_by) ?? "administrador"}`
+                        : ""}
+                      {" · decisión registrada"}
+                    </span>
                   ) : null}
                   {request.submitted_at && (item.approved_qty > 0 || (aggregates.purchasedById[item.id] ?? 0) > 0) ? (
                     <Button

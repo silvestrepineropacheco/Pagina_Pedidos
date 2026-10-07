@@ -823,6 +823,12 @@ export const ReviewItemDialog = ({
             : mode === "reject"
               ? "Artículo rechazado"
               : "Información solicitada",
+        description:
+          mode === "info"
+            ? "El encargado recibió la consulta."
+            : mode === "approve"
+              ? `Cantidad aprobada: ${formatQty(Number(approvedQty))}. La revisión de este artículo ya quedó registrada: pasa a “Compras pendientes”.`
+              : "La revisión de este artículo ya quedó registrada.",
       });
       onOpenChange(false);
     } catch (error) {
