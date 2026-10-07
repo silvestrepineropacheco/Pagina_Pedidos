@@ -20,6 +20,7 @@ import { usePendingPurchaseSummary } from "@/hooks/use-requests";
 import { registerPurchase, updatePurchase } from "@/lib/api";
 import { CHANNELS } from "@/lib/constants";
 import { formatCurrency, formatQty, todayInTimeZone } from "@/lib/format";
+import { friendlyError } from "@/lib/errors";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import { uploadAttachment } from "@/lib/storage";
 
@@ -160,7 +161,10 @@ const NewPurchasePage = () => {
     } catch (purchaseError) {
       toast({
         title: "No se pudo registrar la compra",
-        description: purchaseError instanceof Error ? purchaseError.message : undefined,
+        description: friendlyError(
+          purchaseError,
+          "No pudimos registrar la compra. Tus datos siguen en el formulario. Intentá nuevamente o contactá a un administrador.",
+        ),
         variant: "destructive",
       });
     } finally {

@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/app-shell";
+import { useAuth } from "@/hooks/auth-context";
 import { usePeopleMaps } from "@/hooks/use-reference-data";
+import { can } from "@/lib/permissions";
 import { useRequests } from "@/hooks/use-requests";
 import { REQUEST_STATUS } from "@/lib/constants";
 import type { RequestStatus } from "@/lib/types";
@@ -33,6 +35,7 @@ const POR_RECIBIR: RequestStatus[] = ["purchased_pending_receipt", "partially_re
 const CERRADOS: RequestStatus[] = ["completed", "rejected", "cancelled"];
 
 const MyRequestsPage = () => {
+  const { role } = useAuth();
   const { personName } = usePeopleMaps();
   const { data, isLoading, error, refetch } = useRequests({ limit: 300 });
   const [tab, setTab] = useState("todos");
@@ -64,7 +67,11 @@ const MyRequestsPage = () => {
     <div className="space-y-4">
       <PageHeader
         title="Pedidos"
-        description="Todos los pedidos cargados, incluidos los de tus compañeros. Solo podés editar los borradores que creaste vos."
+        description={
+          can.isAdmin(role)
+            ? "Como administrador ves y gestionás los pedidos de todo el equipo."
+            : "Ves los pedidos de todo el equipo. Solo podés editar los borradores que creaste vos."
+        }
         actions={
           <Button asChild>
             <Link to="/nuevo">

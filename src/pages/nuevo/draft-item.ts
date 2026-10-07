@@ -26,6 +26,8 @@ export interface DraftItem {
   suggested_url: string;
   notes: string;
   photo_path: string | null;
+  /** Adjuntos adicionales (presupuestos, fichas técnicas). */
+  attachments: string[];
 }
 
 export const createEmptyItem = (): DraftItem => ({
@@ -40,6 +42,7 @@ export const createEmptyItem = (): DraftItem => ({
   suggested_url: "",
   notes: "",
   photo_path: null,
+  attachments: [],
 });
 
 export const createSizeRow = (label = "", qty = ""): SizeRow => ({

@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { friendlyError } from "@/lib/errors";
 import {
   addComment,
   applyChangeRequest,
@@ -49,7 +50,10 @@ const invalidate = async (queryClient: ReturnType<typeof useQueryClient>, reques
 const showError = (error: unknown) =>
   toast({
     title: "No se pudo completar la acción",
-    description: error instanceof Error ? error.message : "Intentá nuevamente.",
+    description: friendlyError(
+      error,
+      "No pudimos completar la acción. Intentá nuevamente o contactá a un administrador.",
+    ),
     variant: "destructive",
   });
 

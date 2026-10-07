@@ -24,3 +24,12 @@ export const readSavedSizes = (
     })
     .filter((entry): entry is SavedSize => entry !== null);
 };
+
+/** Adjuntos guardados en las especificaciones (presupuestos, fichas técnicas). */
+export const readSavedAttachments = (
+  specifications: Record<string, unknown> | null | undefined,
+): string[] => {
+  const raw = specifications?.adjuntos;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+};

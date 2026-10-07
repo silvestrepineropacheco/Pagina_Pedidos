@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, ExternalLink, Loader2, Paperclip, Upload } from "lucide-react";
+import { FileText, ExternalLink, Loader2, Paperclip, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { getAttachmentUrl, uploadAttachment } from "@/lib/storage";
@@ -111,3 +111,52 @@ export const AttachmentList = ({ paths, emptyLabel }: { paths: string[]; emptyLa
     </div>
   );
 };
+
+/**
+ * Carga de varios adjuntos (fotos, presupuestos, fichas técnicas) con la
+ * posibilidad de quitar los ya cargados.
+ */
+export const AttachmentManager = ({
+  folder,
+  paths,
+  onChange,
+  disabled,
+  label = "Adjuntar archivo",
+}: {
+  folder: string;
+  paths: string[];
+  onChange: (paths: string[]) => void;
+  disabled?: boolean;
+  label?: string;
+}) => (
+  <div className="space-y-2">
+    <AttachmentUpload
+      folder={folder}
+      label={label}
+      onUploaded={(path) => onChange([...paths, path])}
+      disabled={disabled}
+    />
+    {paths.length === 0 ? (
+      <p className="text-xs text-muted-foreground">
+        Podés adjuntar fotos, presupuestos o fichas técnicas (imágenes o PDF, hasta 10 MB cada uno).
+      </p>
+    ) : (
+      <ul className="space-y-2">
+        {paths.map((path) => (
+          <li key={path} className="flex flex-wrap items-center gap-2">
+            <AttachmentLink path={path} />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onChange(paths.filter((entry) => entry !== path))}
+            >
+              <X className="h-4 w-4" />
+              Quitar
+            </Button>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);

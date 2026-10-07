@@ -36,6 +36,8 @@ export interface RequestFormState {
   estimatedPrice: string;
   machineryQty: string;
   machineryUnit: string;
+  machineryUrl: string;
+  machineryAttachments: string[];
   items: DraftItem[];
 }
 
@@ -53,6 +55,8 @@ export const emptyFormState = (): RequestFormState => ({
   estimatedPrice: "",
   machineryQty: "1",
   machineryUnit: "unidades",
+  machineryUrl: "",
+  machineryAttachments: [],
   items: [createEmptyItem()],
 });
 
@@ -78,6 +82,9 @@ export const validateForm = (
     if (!state.problem.trim()) errors.problem = "Contá cuál es el problema o la necesidad actual.";
     if (!state.expectedBenefit.trim()) errors.expectedBenefit = "Indicá el beneficio esperado.";
     if (!(Number(state.machineryQty) > 0)) errors.machineryQty = "La cantidad debe ser mayor a cero.";
+    if (!isValidHttpUrl(state.machineryUrl || null)) {
+      errors.machineryUrl = "El enlace debe empezar con http:// o https://";
+    }
     return errors;
   }
 
@@ -136,6 +143,9 @@ export const itemPayload = (
   if (rows.length > 0) {
     // Insumos: medida o presentación. Indumentaria: talle o medida.
     specifications[isClothing ? "talles" : "variantes"] = rows;
+  }
+  if (item.attachments.length > 0) {
+    specifications.adjuntos = item.attachments;
   }
   if (isClothing) {
     if (item.motivo.trim()) specifications.motivo = item.motivo.trim();

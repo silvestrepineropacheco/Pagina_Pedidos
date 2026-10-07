@@ -27,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast";
 import { useProfiles } from "@/hooks/use-reference-data";
 import { authorizeProfile, invokeManageUsers, setProfileActive } from "@/lib/api";
+import { friendlyError } from "@/lib/errors";
 import { roleLabel } from "@/lib/permissions";
 import type { AppRole, Profile } from "@/lib/types";
 
@@ -99,7 +100,10 @@ const UsersPage = () => {
     } catch (authorizeError) {
       toast({
         title: "No se pudo autorizar la cuenta",
-        description: authorizeError instanceof Error ? authorizeError.message : undefined,
+        description: friendlyError(
+          authorizeError,
+          "No pudimos autorizar la cuenta. Intentá nuevamente o contactá al proveedor del sistema.",
+        ),
         variant: "destructive",
       });
     } finally {

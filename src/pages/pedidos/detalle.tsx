@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { ItemStatusBadge, PriorityBadge, StatusBadge, ToneBadge } from "@/components/badges";
 import { AttachmentList, AttachmentLink } from "@/components/attachments";
+import { readSavedAttachments } from "@/lib/sizes";
 import { EmptyState, ErrorState, LoadingState } from "@/components/feedback";
 import { SizeBreakdown } from "@/components/requests/size-breakdown";
 import { ProductLinkButton } from "@/components/product-link";
@@ -53,6 +54,7 @@ import {
 } from "@/lib/api";
 import { CHANNELS, EMAIL_STATUS, MACHINERY_TYPES, categoryLabel, labelOf } from "@/lib/constants";
 import { daysSince, formatDate, formatDateTime, formatQty } from "@/lib/format";
+import { friendlyError } from "@/lib/errors";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import { readSavedSizes } from "@/lib/sizes";
 import { can } from "@/lib/permissions";
@@ -137,7 +139,10 @@ const RequestDetailPage = () => {
       await refetch();
       toast({
         title: "No se pudo asignar",
-        description: assignError instanceof Error ? assignError.message : undefined,
+        description: friendlyError(
+          assignError,
+          "No pudimos asignar el pedido. Intentá nuevamente: puede que otro administrador lo haya tomado.",
+        ),
         variant: "destructive",
       });
     } finally {
@@ -163,7 +168,10 @@ const RequestDetailPage = () => {
     } catch (submitError) {
       toast({
         title: "No se pudo enviar",
-        description: submitError instanceof Error ? submitError.message : undefined,
+        description: friendlyError(
+          submitError,
+          "No pudimos enviar el pedido. Intentá nuevamente o contactá a un administrador.",
+        ),
         variant: "destructive",
       });
     } finally {
@@ -588,6 +596,14 @@ const RequestDetailPage = () => {
                     cuentan como entregadas)
                   </p>
                 ) : null}
+                {readSavedAttachments(item.specifications).length > 0 ? (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Adjuntos ({readSavedAttachments(item.specifications).length})
+                    </p>
+                    <AttachmentList paths={readSavedAttachments(item.specifications)} />
+                  </div>
+                ) : null}
                 {item.change_pending ? (
                   <p className="mt-1 text-xs text-warning-soft-foreground">
                     Tiene un cambio pendiente de revisión.
@@ -595,8 +611,11 @@ const RequestDetailPage = () => {
                 ) : null}
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {isAdmin && item.suggested_url ? (
-                    <ProductLinkButton url={item.suggested_url} />
+                  {item.suggested_url ? (
+                    <ProductLinkButton
+                      url={item.suggested_url}
+                      label={isAdmin ? "Abrir producto sugerido" : "Ver enlace del producto"}
+                    />
                   ) : null}
                   {isAdmin && item.purchase_url ? (
                     <ProductLinkButton url={item.purchase_url} label="Abrir enlace de la compra" />

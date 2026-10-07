@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, Loader2, Plus, Save, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ToastAction } from "@/components/ui/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -36,10 +37,14 @@ import {
   updateRequestItem,
 } from "@/lib/api";
 import { CATEGORIES, MACHINERY_TYPES, UNITS, categoryLabel, labelOf } from "@/lib/constants";
-import { formatQty } from "@/lib/format";
+import { formatCurrency, formatDate, formatQty } from "@/lib/format";
+import { SAVE_ERROR_MESSAGE, friendlyError } from "@/lib/errors";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import type { Priority, RequestCategory } from "@/lib/types";
+import { AttachmentList, AttachmentManager } from "@/components/attachments";
+import { ErrorState } from "@/components/feedback";
 import { ItemEditor } from "./item-editor";
+import { readSavedAttachments } from "@/lib/sizes";
 import {
   createEmptyItem,
   filledSizes,
@@ -65,9 +70,12 @@ const RequestFormPage = () => {
   const draftId = searchParams.get("borrador");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  // Si la cuenta todavía no está habilitada, se avisa antes de completar todo.
+  const accountReady = Boolean(profile?.active && profile?.role && profile.role !== "pending");
   const { data: bundle } = useRequestBundle(draftId ?? undefined);
-  const { data: catalog } = useCatalog();
+  const { data: catalog, isLoading: catalogLoading, isError: catalogError, refetch: refetchCatalog } =
+    useCatalog();
 
   const category = (CATEGORY_VALUES.includes(categoria as RequestCategory)
     ? categoria
@@ -106,6 +114,8 @@ const RequestFormPage = () => {
       estimatedPrice: request.estimated_price != null ? String(request.estimated_price) : "",
       machineryQty: firstItem ? String(firstItem.requested_qty) : "1",
       machineryUnit: firstItem?.unit ?? "unidades",
+      machineryUrl: firstItem?.suggested_url ?? "",
+      machineryAttachments: readSavedAttachments(firstItem?.specifications),
       items:
         category === "maquinaria" || items.length === 0
           ? [createEmptyItem()]
@@ -122,6 +132,7 @@ const RequestFormPage = () => {
               suggested_url: item.suggested_url ?? "",
               notes: item.notes ?? "",
               photo_path: item.photo_path,
+              attachments: readSavedAttachments(item.specifications),
             })),
     }));
   }, [bundle, draftId, category]);
@@ -198,6 +209,8 @@ const RequestFormPage = () => {
                 name: state.equipmentName.trim(),
                 requested_qty: state.machineryQty,
                 unit: state.machineryUnit,
+                suggested_url: state.machineryUrl.trim(),
+                attachments: state.machineryAttachments,
               },
             ]
           : state.items.filter((item) => item.name.trim().length > 0);
@@ -237,7 +250,7 @@ const RequestFormPage = () => {
     } catch (error) {
       toast({
         title: "No se pudo guardar",
-        description: error instanceof Error ? error.message : "Intentá nuevamente.",
+        description: friendlyError(error, SAVE_ERROR_MESSAGE),
         variant: "destructive",
       });
       return null;
@@ -249,7 +262,15 @@ const RequestFormPage = () => {
   const handleSaveDraft = async () => {
     const id = await persist();
     if (!id) return;
-    toast({ title: "Borrador guardado", description: "Podés seguir editándolo antes de enviarlo." });
+    toast({
+      title: "Borrador guardado",
+      description: "Podés seguir editándolo antes de enviarlo. No se avisó a ningún administrador.",
+      action: (
+        <ToastAction altText="Abrir el pedido" onClick={() => navigate(`/pedidos/${id}`)}>
+          Abrir
+        </ToastAction>
+      ),
+    });
     if (!draftId) navigate(`/nuevo/${category}?borrador=${id}`, { replace: true });
   };
 
@@ -262,7 +283,7 @@ const RequestFormPage = () => {
         setSummaryOpen(false);
         return;
       }
-      await submitRequest(id);
+      const submitted = await submitRequest(id);
       setSummaryOpen(false);
 
       try {
@@ -283,12 +304,23 @@ const RequestFormPage = () => {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["requests"] });
-      toast({ title: "Solicitud enviada", description: "Los administradores ya pueden revisarla." });
+      toast({
+        title: `Solicitud ${submitted.folio ?? ""} enviada`,
+        description: "Los administradores ya pueden revisarla.",
+        action: (
+          <ToastAction altText="Abrir el pedido" onClick={() => navigate(`/pedidos/${id}`)}>
+            Abrir
+          </ToastAction>
+        ),
+      });
       navigate(`/pedidos/${id}`);
     } catch (error) {
       toast({
         title: "No se pudo enviar",
-        description: error instanceof Error ? error.message : "Intentá nuevamente.",
+        description: friendlyError(
+          error,
+          "No pudimos enviar el pedido. Tus datos siguen en el formulario. Intentá nuevamente o contactá a un administrador.",
+        ),
         variant: "destructive",
       });
     } finally {
@@ -316,6 +348,18 @@ const RequestFormPage = () => {
           <p className="text-sm text-muted-foreground">{categoryLabel(category)}</p>
         </div>
       </div>
+
+      {!accountReady ? (
+        <Card className="border-warning/40 bg-warning-soft shadow-card">
+          <CardContent className="space-y-1 p-4 text-sm text-warning-soft-foreground">
+            <p className="font-medium">Tu cuenta todavía no está habilitada para cargar pedidos</p>
+            <p>
+              Pedile al Propietario que autorice tu cuenta y te asigne un rol (Encargado). Cuando lo
+              haga, recargá la página. No hace falta que completes el formulario antes.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="shadow-card">
         <CardHeader>
@@ -511,10 +555,50 @@ const RequestFormPage = () => {
                 onChange={(event) => setState((s) => ({ ...s, technicalSpecs: event.target.value }))}
               />
             </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="machinery_url">
+                Enlace del producto, proveedor o publicación (opcional)
+              </Label>
+              <Input
+                id="machinery_url"
+                value={state.machineryUrl}
+                onChange={(event) => setState((s) => ({ ...s, machineryUrl: event.target.value }))}
+                placeholder="https://... (Mercado Libre, proveedor o tienda)"
+                aria-invalid={Boolean(errors.machineryUrl)}
+              />
+              {errors.machineryUrl ? (
+                <p className="text-xs text-destructive">{errors.machineryUrl}</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Adjuntos: fotos, presupuestos o fichas técnicas (opcional)</Label>
+              <AttachmentManager
+                folder={uploadFolder}
+                paths={state.machineryAttachments}
+                onChange={(paths) => setState((s) => ({ ...s, machineryAttachments: paths }))}
+                disabled={!uploadFolder}
+              />
+            </div>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
+          {catalogError ? (
+            <ErrorState
+              message="No pudimos cargar el catálogo de productos habituales. Podés usar “Otro artículo” o reintentar."
+              onRetry={() => void refetchCatalog()}
+            />
+          ) : catalogLoading ? (
+            <p className="text-xs text-muted-foreground">Cargando el catálogo de productos habituales…</p>
+          ) : categoryCatalog.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              El catálogo no tiene productos de esta categoría. Podés usar “Otro artículo”, o un
+              administrador puede cargarlos desde <strong>Catálogo</strong>.
+            </p>
+          ) : null}
+
           {errors.items ? (
             <div className="rounded-md bg-destructive-soft p-3 text-sm text-destructive-soft-foreground">
               {errors.items}
@@ -559,14 +643,19 @@ const RequestFormPage = () => {
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 p-3 backdrop-blur lg:static lg:rounded-lg lg:border lg:p-4">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button variant="outline" size="lg" onClick={handleSaveDraft} disabled={saving || sending}>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleSaveDraft}
+            disabled={saving || sending || !accountReady}
+          >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Guardar borrador
           </Button>
           <Button
             size="lg"
             onClick={() => setSummaryOpen(true)}
-            disabled={saving || sending || hasErrors}
+            disabled={saving || sending || hasErrors || !accountReady}
           >
             <Send className="h-4 w-4" />
             Revisar y enviar
@@ -592,7 +681,7 @@ const RequestFormPage = () => {
               </p>
               <p>
                 <span className="text-muted-foreground">Fecha necesaria: </span>
-                {state.neededBy || "—"}
+                {state.neededBy ? formatDate(state.neededBy) : "—"}
               </p>
               <p>
                 <span className="text-muted-foreground">Prioridad: </span>
@@ -614,13 +703,53 @@ const RequestFormPage = () => {
             ) : null}
 
             {isMachinery ? (
-              <div className="rounded-md border border-border p-3">
-                <p className="font-medium">{state.equipmentName}</p>
-                <p className="text-muted-foreground">
-                  {labelOf(MACHINERY_TYPES, state.machineryType)} · {formatQty(Number(state.machineryQty))}{" "}
-                  {state.machineryUnit}
-                </p>
-                <p className="mt-2 whitespace-pre-line text-muted-foreground">{state.problem}</p>
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <p className="font-medium">{state.equipmentName || "Sin título"}</p>
+                <dl className="grid gap-2 sm:grid-cols-2">
+                  <SummaryItem label="Tipo de solicitud" value={labelOf(MACHINERY_TYPES, state.machineryType)} />
+                  <SummaryItem
+                    label="Cantidad y unidad"
+                    value={`${formatQty(Number(state.machineryQty))} ${state.machineryUnit}`}
+                  />
+                  <SummaryItem label="Problema o necesidad" value={state.problem} />
+                  <SummaryItem label="Beneficio esperado" value={state.expectedBenefit} />
+                  <SummaryItem label="Equipo actual y estado" value={state.currentEquipment} />
+                  <SummaryItem label="Especificaciones necesarias" value={state.technicalSpecs} />
+                  <SummaryItem
+                    label="Precio estimado"
+                    value={
+                      state.estimatedPrice && !Number.isNaN(Number(state.estimatedPrice))
+                        ? formatCurrency(Number(state.estimatedPrice))
+                        : null
+                    }
+                  />
+                  <SummaryItem label="Observaciones" value={state.notes} />
+                </dl>
+                <div>
+                  <p className="text-xs text-muted-foreground">Enlace</p>
+                  {state.machineryUrl ? (
+                    <a
+                      href={state.machineryUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="break-all text-xs text-primary underline-offset-2 hover:underline"
+                    >
+                      {state.machineryUrl}
+                    </a>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Sin enlace</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Adjuntos ({state.machineryAttachments.length})
+                  </p>
+                  {state.machineryAttachments.length > 0 ? (
+                    <AttachmentList paths={state.machineryAttachments} />
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Sin adjuntos</p>
+                  )}
+                </div>
               </div>
             ) : (
               <ul className="space-y-2">
@@ -644,6 +773,29 @@ const RequestFormPage = () => {
                               .map((entry) => `${entry.talle}: ${formatQty(entry.cantidad)}`)
                               .join(" · ")}
                           </p>
+                        ) : null}
+                        {item.notes ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Observaciones: {item.notes}
+                          </p>
+                        ) : null}
+                        {item.suggested_url ? (
+                          <p className="mt-1 text-xs">
+                            <span className="text-muted-foreground">Enlace: </span>
+                            <a
+                              href={item.suggested_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="break-all text-primary underline-offset-2 hover:underline"
+                            >
+                              {item.suggested_url}
+                            </a>
+                          </p>
+                        ) : null}
+                        {item.attachments.length > 0 ? (
+                          <div className="mt-1">
+                            <AttachmentList paths={item.attachments} />
+                          </div>
                         ) : null}
                       </li>
                     );
@@ -670,5 +822,13 @@ const RequestFormPage = () => {
     </div>
   );
 };
+
+const SummaryItem = ({ label, value }: { label: string; value?: string | null }) =>
+  value && value.trim().length > 0 ? (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="whitespace-pre-line text-sm">{value}</dd>
+    </div>
+  ) : null;
 
 export default RequestFormPage;
