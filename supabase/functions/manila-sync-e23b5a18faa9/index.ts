@@ -23,7 +23,8 @@ const OPS = {
   driveFindFile: "6e488a65-2265-43e6-8b48-3a099bd97b7f",
   driveUploadFromUrl: "f3add469-c853-4b82-b9f0-f0b33fede451",
   sheetsCreate: "7aee5edc-f78f-475e-8a7b-73160f6b540e",
-  sheetsUpsert: "082b0411-53e1-43bf-bf61-9bb64a88f3fd",
+  sheetsGet: "fae77e36-cafa-4ae7-833e-f9e90047990b",
+  sheetsUpdate: "2bec2a3a-21ab-44a6-a06f-fdabe8dfe71e",
 };
 
 const TOKENS = {
@@ -34,8 +35,6 @@ const TOKENS = {
 
 const DRIVE_ROOT = "Pedidos Manila";
 const SHEETS_TITLE = "Registro de pedidos y compras Manila";
-const SHEETS_TAB = "Pedidos";
-const KEY_COLUMN = "Número de pedido";
 const BUCKET = "request-attachments";
 
 const COLUMNS = [
@@ -96,11 +95,16 @@ const date = (value: unknown) => {
 
 const fileName = (path: string) => path.split("/").pop() ?? path;
 
-const callConnector = async (tokenName: string, operationId: string, input: unknown) => {
+const callConnector = async (
+  tokenName: string,
+  operationId: string,
+  input: unknown,
+  label: string,
+) => {
   const token = Deno.env.get(tokenName);
   if (!token) {
     throw new Error(
-      `Falta la credencial del conector (${tokenName}). Se aprovisiona al desplegar la funcion.`,
+      `${label}: falta la credencial del conector (${tokenName}); se aprovisiona al desplegar la funcion.`,
     );
   }
   const response = await fetch(`${GATEWAY}/${operationId}`, {
@@ -111,7 +115,7 @@ const callConnector = async (tokenName: string, operationId: string, input: unkn
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = payload?.error?.message ?? `Error ${response.status}`;
-    throw new Error(`${payload?.error?.code ?? "PROVIDER_ERROR"}: ${message}`);
+    throw new Error(`${label}: ${payload?.error?.code ?? "PROVIDER_ERROR"}: ${message}`);
   }
   return payload?.data ?? payload;
 };
@@ -131,6 +135,18 @@ const asList = (data: unknown, keys: string[]): Record<string, unknown>[] => {
   for (const key of keys) {
     const value = record[key];
     if (Array.isArray(value)) return value as Record<string, unknown>[];
+  }
+  return [];
+};
+
+/** Filas devueltas por la lectura de Sheets, sin confiar en la forma exacta. */
+const extractSheetRows = (data: unknown): unknown[][] => {
+  if (Array.isArray(data)) return data as unknown[][];
+  const record = data as Record<string, unknown> | null;
+  const nested = record?.data as Record<string, unknown> | undefined;
+  const candidates = [record?.values, record?.rows, nested?.values, nested?.rows];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate as unknown[][];
   }
   return [];
 };
@@ -288,11 +304,12 @@ Deno.serve(async (req) => {
         const failures: string[] = [];
         for (const admin of admins) {
           try {
-            await callConnector(TOKENS.gmail, OPS.gmailSend, {
-              recipient_email: admin.email,
-              subject,
-              body: bodyLines.join("\n"),
-            });
+            await callConnector(
+              TOKENS.gmail,
+              OPS.gmailSend,
+              { recipient_email: admin.email, subject, body: bodyLines.join("\n") },
+              "gmail.send",
+            );
             sent += 1;
           } catch (error) {
             failures.push(`${admin.email}: ${String(error).slice(0, 120)}`);
@@ -330,17 +347,25 @@ Deno.serve(async (req) => {
         spreadsheetId = text(target?.external_id);
 
         if (!spreadsheetId) {
-          const found = await callConnector(TOKENS.drive, OPS.driveFindFile, {
-            q: `name = '${SHEETS_TITLE}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
-          });
+          const found = await callConnector(
+            TOKENS.drive,
+            OPS.driveFindFile,
+            {
+              q: `name = '${SHEETS_TITLE}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
+            },
+            "drive.findFile",
+          );
           const file = firstItem(found, ["files", "items"]);
           spreadsheetId = text(file?.id);
         }
 
         if (!spreadsheetId) {
-          const created = await callConnector(TOKENS.sheets, OPS.sheetsCreate, {
-            title: SHEETS_TITLE,
-          });
+          const created = await callConnector(
+            TOKENS.sheets,
+            OPS.sheetsCreate,
+            { title: SHEETS_TITLE },
+            "sheets.create",
+          );
           spreadsheetId =
             text((created as Record<string, unknown>)?.spreadsheetId) ||
             text(firstItem(created, ["spreadsheet", "spreadsheets"])?.spreadsheetId) ||
@@ -358,34 +383,68 @@ Deno.serve(async (req) => {
           .map((item) => Number(item.requested_qty))
           .reduce((sum, value) => sum + value, 0);
 
-        await callConnector(TOKENS.sheets, OPS.sheetsUpsert, {
-          spreadsheetId,
-          sheetName: SHEETS_TAB,
-          headers: COLUMNS,
-          keyColumn: KEY_COLUMN,
-          rows: [
-            [
-              folio,
-              date(request.submitted_at ?? request.created_at),
-              CATEGORY_LABELS[category] ?? category,
-              "—",
-              nameOf(request.requester_id),
-              items.map((item) => text(item.name)).join("; "),
-              items
-                .map((item) => `${Number(item.requested_qty)} ${text(item.unit) || ""}`.trim())
-                .join("; "),
-              stateLabel,
-              vendors || "—",
-              date(purchaseDate),
-              totalPurchase > 0 ? totalPurchase.toFixed(2) : "",
-              date(estimatedDelivery),
-              date(receiptDate),
-              nameOf(request.assigned_admin_id) || "Sin asignar",
-            ],
-          ],
-        });
+        const registryRow = [
+          folio,
+          date(request.submitted_at ?? request.created_at),
+          CATEGORY_LABELS[category] ?? category,
+          "—",
+          nameOf(request.requester_id),
+          items.map((item) => text(item.name)).join("; "),
+          items
+            .map((item) => `${Number(item.requested_qty)} ${text(item.unit) || ""}`.trim())
+            .join("; "),
+          stateLabel,
+          vendors || "—",
+          date(purchaseDate),
+          totalPurchase > 0 ? totalPurchase.toFixed(2) : "",
+          date(estimatedDelivery),
+          date(receiptDate),
+          nameOf(request.assigned_admin_id) || "Sin asignar",
+        ];
 
-        const detail = `Fila actualizada en “${SHEETS_TITLE}” (${items.length} artículo(s), ${requested} solicitado(s)).`;
+        // Se usan las operaciones nativas de Sheets: leer la columna del número de
+        // pedido y escribir solo esa fila (o agregarla). Se omite el nombre de la
+        // pestaña a propósito: así aplica a la primera hoja visible.
+        const current = await callConnector(
+          TOKENS.sheets,
+          OPS.sheetsGet,
+          { spreadsheet_id: spreadsheetId, range: "A1:N1000" },
+          "sheets.get",
+        );
+        const rows = extractSheetRows(current);
+        const lastColumn = String.fromCharCode(64 + COLUMNS.length);
+
+        if (rows.length === 0) {
+          await callConnector(
+            TOKENS.sheets,
+            OPS.sheetsUpdate,
+            {
+              spreadsheet_id: spreadsheetId,
+              range: `A1:${lastColumn}2`,
+              value_input_option: "RAW",
+              values: [COLUMNS, registryRow],
+            },
+            "sheets.update",
+          );
+        } else {
+          const position = rows.findIndex(
+            (row, index) => index > 0 && text((row as unknown[])?.[0]).trim() === folio,
+          );
+          const targetRow = position > 0 ? position + 1 : rows.length + 1;
+          await callConnector(
+            TOKENS.sheets,
+            OPS.sheetsUpdate,
+            {
+              spreadsheet_id: spreadsheetId,
+              range: `A${targetRow}:${lastColumn}${targetRow}`,
+              value_input_option: "RAW",
+              values: [registryRow],
+            },
+            "sheets.update",
+          );
+        }
+
+        const detail = `Fila ${rows.length === 0 ? "creada" : "actualizada"} en “${SHEETS_TITLE}” (${items.length} artículo(s), ${requested} solicitado(s)).`;
         await syncLog("sheets", "ok", detail, spreadsheetId);
         channels.sheets = { status: "ok", detail };
       }
@@ -437,17 +496,21 @@ Deno.serve(async (req) => {
           if (stored?.external_id && (!parentId || stored.parent_id === parentId)) {
             return text(stored.external_id);
           }
-          const found = await callConnector(TOKENS.drive, OPS.driveFindFolder, {
-            name_exact: name,
-            ...(parentId ? { parent_folder_id: parentId } : {}),
-          });
+          const found = await callConnector(
+            TOKENS.drive,
+            OPS.driveFindFolder,
+            { name_exact: name, ...(parentId ? { parent_folder_id: parentId } : {}) },
+            "drive.findFolder",
+          );
           const existing = firstItem(found, ["folders", "files"]);
           let folderId = text(existing?.id);
           if (!folderId) {
-            const created = await callConnector(TOKENS.drive, OPS.driveCreateFolder, {
-              name,
-              ...(parentId ? { parent_id: parentId } : {}),
-            });
+            const created = await callConnector(
+              TOKENS.drive,
+              OPS.driveCreateFolder,
+              { name, ...(parentId ? { parent_id: parentId } : {}) },
+              "drive.createFolder",
+            );
             folderId =
               text(firstItem(created, ["folder", "file"])?.id) ||
               text((created as Record<string, unknown>)?.id);
@@ -475,9 +538,12 @@ Deno.serve(async (req) => {
         for (const file of files) {
           try {
             const name = `${folio} - ${file.label} - ${fileName(file.path)}`;
-            const existing = await callConnector(TOKENS.drive, OPS.driveFindFile, {
-              q: `name = '${name}' and '${orderFolderId}' in parents and trashed = false`,
-            });
+            const existing = await callConnector(
+              TOKENS.drive,
+              OPS.driveFindFile,
+              { q: `name = '${name}' and '${orderFolderId}' in parents and trashed = false` },
+              "drive.findFile",
+            );
             if (firstItem(existing, ["files", "items"])) continue;
 
             const { data: signed } = await supabase.storage
@@ -485,11 +551,12 @@ Deno.serve(async (req) => {
               .createSignedUrl(file.path, 3600);
             if (!signed?.signedUrl) throw new Error(`Sin acceso al archivo ${file.path}`);
 
-            await callConnector(TOKENS.drive, OPS.driveUploadFromUrl, {
-              source_url: signed.signedUrl,
-              name,
-              parent_folder_id: orderFolderId,
-            });
+            await callConnector(
+              TOKENS.drive,
+              OPS.driveUploadFromUrl,
+              { source_url: signed.signedUrl, name, parent_folder_id: orderFolderId },
+              "drive.uploadFromUrl",
+            );
             uploaded += 1;
           } catch (error) {
             failures.push(`${fileName(file.path)}: ${String(error).slice(0, 100)}`);
