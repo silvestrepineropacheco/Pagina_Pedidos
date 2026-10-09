@@ -24,7 +24,7 @@ import { Logo } from "@/components/logo";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/auth-context";
 import { useNotifications } from "@/hooks/use-purchases";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, APP_VERSION } from "@/lib/constants";
 import { roleLabel } from "@/lib/permissions";
 import type { AppRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -100,6 +100,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
           <div className="px-2 pt-2">
             <Logo onDark className="w-[170px]" />
             <p className="mt-1.5 text-xs text-sidebar-foreground/70">Pedidos y Compras</p>
+            <p className="text-[11px] text-sidebar-foreground/50">Versión {APP_VERSION}</p>
           </div>
           <NavList role={role} />
         </div>

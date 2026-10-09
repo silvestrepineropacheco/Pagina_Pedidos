@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { ownerSetupPending } from "@/lib/api";
+import { APP_VERSION } from "@/lib/constants";
 
 type Mode = "login" | "signup";
 
@@ -83,6 +84,7 @@ const LoginPage = () => {
         <div>
           <Logo onDark className="w-[220px]" />
           <p className="mt-2 text-sm text-primary-foreground/80">Pedidos y Compras</p>
+          <p className="text-xs text-primary-foreground/60">Versión {APP_VERSION}</p>
         </div>
         <div className="mt-8 space-y-3 lg:mt-0">
           <h1 className="text-2xl font-semibold leading-tight sm:text-3xl">
