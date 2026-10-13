@@ -20,3 +20,14 @@ export const formatoPct = (valor: number | null): string =>
 /** Variación con signo: +58,0% o -17,2%. Sin dato si no hay contra qué comparar. */
 export const formatoVariacion = (valor: number | null): string =>
   valor === null ? "—" : `${valor > 0 ? "+" : ""}${unDecimal.format(valor)}%`;
+
+const hastaUnDecimal = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
+
+/** Pesos abreviados para gráficos y textos: $28,7 M · $950 mil · $800 */
+export const formatoPesosCorto = (valor: number): string => {
+  const absoluto = Math.abs(valor);
+  const signo = valor < 0 ? "-" : "";
+  if (absoluto >= 1_000_000) return `${signo}$${hastaUnDecimal.format(absoluto / 1_000_000)} M`;
+  if (absoluto >= 1_000) return `${signo}$${entero.format(Math.round(absoluto / 1_000))} mil`;
+  return `${signo}$${entero.format(Math.round(absoluto))}`;
+};

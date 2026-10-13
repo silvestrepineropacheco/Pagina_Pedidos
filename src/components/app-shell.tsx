@@ -97,7 +97,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex min-h-screen w-full bg-background">
-      <aside className="hidden w-72 shrink-0 flex-col justify-between bg-sidebar p-4 lg:flex">
+      <aside className="hidden w-72 shrink-0 flex-col justify-between bg-sidebar p-4 lg:flex print:!hidden">
         <div className="space-y-6">
           <div className="px-2 pt-2">
             <Logo onDark className="w-[170px]" />
@@ -128,7 +128,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-primary px-4 py-3 lg:hidden">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-primary px-4 py-3 lg:hidden print:hidden">
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="secondary" size="icon" aria-label="Abrir menú">

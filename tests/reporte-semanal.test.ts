@@ -8,7 +8,9 @@ import {
   categoriaDe,
   formatoKg,
   formatoPesos,
+  formatoPesosCorto,
   formatoVariacion,
+  lecturasDelReporte,
   leerPedidos,
   normalizarTexto,
   semanaIso,
@@ -218,5 +220,35 @@ describe("formato argentino", () => {
     assert.equal(formatoVariacion(-17.2), "-17,2%");
     assert.equal(formatoVariacion(58), "+58,0%");
     assert.equal(formatoVariacion(null), "—");
+  });
+});
+
+describe("explicaciones en palabras", () => {
+  const lecturas = lecturasDelReporte(reporte);
+
+  it("el resumen cuenta la venta y la variación con los números del reporte", () => {
+    assert.match(lecturas.resumen[0], /\$23\.718\.238/);
+    assert.match(lecturas.resumen[0], /bajó 17,2%/);
+    assert.match(lecturas.resumen[0], /\$28\.650\.861/);
+    assert.match(lecturas.contexto, /\$43\.453\.909/);
+    assert.match(lecturas.contexto, /por debajo/);
+  });
+
+  it("explica que la caída vino de los ocasionales y que no repetir no es perderse", () => {
+    assert.match(lecturas.recurrentes, /5 clientes compraron en las dos semanas/);
+    assert.match(lecturas.recurrentes, /caída de la semana se explica sobre todo por los clientes ocasionales/);
+    assert.match(lecturas.clientes, /no significa que se hayan perdido/);
+  });
+
+  it("solo menciona pedidos excepcionales cuando los hay", () => {
+    assert.equal(lecturas.excepcionales, null);
+    const semana41 = lecturasDelReporte(calcularReporteSemanal(lineas, { semanaA: 40, semanaB: 41 }));
+    assert.match(semana41.excepcionales ?? "", /01-430/);
+  });
+
+  it("abrevia los importes para los gráficos", () => {
+    assert.equal(formatoPesosCorto(28650861), "$28,7 M");
+    assert.equal(formatoPesosCorto(254800), "$255 mil");
+    assert.equal(formatoPesosCorto(0), "$0");
   });
 });
