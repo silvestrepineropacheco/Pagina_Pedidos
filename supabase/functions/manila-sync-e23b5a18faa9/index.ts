@@ -164,6 +164,75 @@ const spreadsheetIdFrom = (value: string) => {
   return /^[a-zA-Z0-9_-]{20,}$/.test(value.trim()) ? value.trim() : "";
 };
 
+/* Acceso a Google con una cuenta de servicio (solo lectura de planillas). */
+// La clave vive en el secreto GOOGLE_SERVICE_ACCOUNT_JSON de Supabase: nunca en el código.
+interface GoogleServiceAccount {
+  client_email: string;
+  private_key: string;
+}
+
+const googleServiceAccount = (): GoogleServiceAccount => {
+  const raw = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
+  if (!raw) {
+    throw new Error("Falta cargar la credencial de Google (secreto GOOGLE_SERVICE_ACCOUNT_JSON) en Supabase.");
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed?.client_email || !parsed?.private_key) throw new Error("incompleta");
+    return { client_email: String(parsed.client_email), private_key: String(parsed.private_key) };
+  } catch {
+    throw new Error("La credencial de Google (GOOGLE_SERVICE_ACCOUNT_JSON) no es el archivo JSON completo de la cuenta de servicio.");
+  }
+};
+
+const base64Url = (input: string | Uint8Array) => {
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
+
+const googleAccessToken = async (account: GoogleServiceAccount) => {
+  const pem = account.private_key.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const der = Uint8Array.from(atob(pem), (char) => char.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    der,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = [
+    base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" })),
+    base64Url(
+      JSON.stringify({
+        iss: account.client_email,
+        scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
+        aud: "https://oauth2.googleapis.com/token",
+        iat: now,
+        exp: now + 600,
+      }),
+    ),
+  ].join(".");
+  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned));
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: `${unsigned}.${base64Url(new Uint8Array(signature))}`,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.access_token) {
+    throw new Error(`Google rechazó la credencial: ${text(payload?.error_description || payload?.error) || response.status}`);
+  }
+  return String(payload.access_token);
+};
+
 const readSalesOrders = async (
   // deno-lint-ignore no-explicit-any
   supabase: any,
@@ -199,25 +268,48 @@ const readSalesOrders = async (
     return jsonResponse({ error: "Todavía no se configuró la planilla de pedidos.", needs_config: true }, 400);
   }
 
-  // Se piden los valores sin formato para que los importes lleguen como números.
-  // Si el conector no acepta el nombre de la pestaña, se lee la primera hoja.
-  let data: unknown = null;
-  let lastError = "";
-  for (const range of [`${SALES_SHEET_TAB}!${SALES_SHEET_RANGE}`, SALES_SHEET_RANGE]) {
-    try {
-      data = await callConnector(
-        TOKENS.sheets,
-        OPS.sheetsGet,
-        { spreadsheet_id: spreadsheetId, range, value_render_option: "UNFORMATTED_VALUE" },
-        "sheets.get",
-      );
-      break;
-    } catch (error) {
-      lastError = String(error);
-    }
+  let account: GoogleServiceAccount;
+  try {
+    account = googleServiceAccount();
+  } catch (error) {
+    return jsonResponse({ error: (error as Error).message }, 500);
   }
-  if (data === null) {
-    return jsonResponse({ error: `No se pudo leer la planilla: ${lastError.slice(0, 300)}` }, 502);
+
+  // Se piden los valores sin formato para que los importes lleguen como números.
+  let data: unknown = null;
+  try {
+    const token = await googleAccessToken(account);
+    const range = encodeURIComponent(`${SALES_SHEET_TAB}!${SALES_SHEET_RANGE}`);
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = text(payload?.error?.message);
+      if (response.status === 403) {
+        return jsonResponse(
+          { error: `La planilla no está compartida con ${account.client_email}. Compartila con ese correo como "Lector".` },
+          502,
+        );
+      }
+      if (response.status === 404) {
+        return jsonResponse({ error: "No se encontró la planilla: revisá el enlace." }, 502);
+      }
+      if (/not supported for this document/i.test(detail)) {
+        return jsonResponse(
+          { error: "El archivo es un Excel subido a Drive. Guardalo como Hoja de cálculo de Google y usá ese enlace." },
+          502,
+        );
+      }
+      if (/unable to parse range/i.test(detail)) {
+        return jsonResponse({ error: `La planilla no tiene una hoja llamada "${SALES_SHEET_TAB}".` }, 502);
+      }
+      return jsonResponse({ error: `No se pudo leer la planilla: ${detail.slice(0, 300) || response.status}` }, 502);
+    }
+    data = payload;
+  } catch (error) {
+    return jsonResponse({ error: `No se pudo leer la planilla: ${String(error).slice(0, 300)}` }, 502);
   }
 
   // Recién cuando la lectura funcionó se recuerda la planilla para la próxima vez.

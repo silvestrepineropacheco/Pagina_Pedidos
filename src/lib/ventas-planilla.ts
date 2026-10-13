@@ -52,7 +52,7 @@ export const leerPlanillaDePedidos = async (enlace?: string): Promise<LecturaPed
     // La versión anterior de la función no conoce esta acción y pide un pedido de compra.
     if (detalle.error === "Falta el pedido.") {
       throw new ErrorDePlanilla(
-        "El servidor todavía no tiene la lectura de la planilla: falta actualizar la función en Enter.pro.",
+        "El servidor todavía no tiene la lectura de la planilla: falta actualizar la función en Supabase.",
       );
     }
     throw new ErrorDePlanilla(
