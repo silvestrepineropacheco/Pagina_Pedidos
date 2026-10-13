@@ -3,8 +3,12 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+  aNumero,
   calcularReporteSemanal,
   categoriaDe,
+  formatoKg,
+  formatoPesos,
+  formatoVariacion,
   leerPedidos,
   normalizarTexto,
   semanaIso,
@@ -167,5 +171,52 @@ describe("categorías de producto", () => {
     assert.equal(categoriaDe("Trucha Filet Fresca - PBO - Trim C (600-UP)"), "Filet Trim C");
     assert.equal(categoriaDe("Filet fresco PBI"), "Filet fresco PBI/PBO");
     assert.equal(categoriaDe("Algo que no existe"), "Otros");
+  });
+});
+
+describe("planilla con los valores formateados como texto (Google Sheets)", () => {
+  it("lee importes y cantidades en formato argentino", () => {
+    assert.equal(aNumero("$ 1.234.567,50"), 1234567.5);
+    assert.equal(aNumero("1.441"), 1441);
+    assert.equal(aNumero("28.650.861"), 28650861);
+    assert.equal(aNumero("94,21"), 94.21);
+    assert.equal(aNumero("63.5"), 63.5);
+    assert.equal(aNumero(""), 0);
+  });
+
+  it("da los mismos números que con el Excel", () => {
+    const formato = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 6 });
+    const comoTexto = leerHojaXlsx(PLANILLA, "PEDIDOS").map((fila) =>
+      fila.map((celda) => (typeof celda === "number" ? formato.format(celda) : (celda ?? ""))),
+    );
+    const desdeTexto = calcularReporteSemanal(leerPedidos(comoTexto).lineas, { semanaA: 37, semanaB: 38 });
+    assert.deepEqual(desdeTexto, reporte);
+  });
+
+  it("avisa con un error claro si se renombra una columna", () => {
+    const matriz = leerHojaXlsx(PLANILLA, "PEDIDOS").map((fila) =>
+      fila.map((celda) => (celda === "TOTAL Pedido" ? "Importe" : celda)),
+    );
+    assert.throws(() => leerPedidos(matriz), /faltan estas columnas: total pedido/);
+  });
+
+  it("sigue funcionando si se mueve una columna", () => {
+    const matriz = leerHojaXlsx(PLANILLA, "PEDIDOS").map((fila) => {
+      const copia = Array.from({ length: 23 }, (_, indice) => fila[indice] ?? null);
+      [copia[3], copia[5]] = [copia[5], copia[3]];
+      return copia;
+    });
+    const movida = calcularReporteSemanal(leerPedidos(matriz).lineas, { semanaA: 37, semanaB: 38 });
+    assert.deepEqual(movida, reporte);
+  });
+});
+
+describe("formato argentino", () => {
+  it("pesos, kilos y porcentajes", () => {
+    assert.equal(formatoPesos(28650861.46), "$28.650.861");
+    assert.equal(formatoKg(1441), "1.441 kg");
+    assert.equal(formatoVariacion(-17.2), "-17,2%");
+    assert.equal(formatoVariacion(58), "+58,0%");
+    assert.equal(formatoVariacion(null), "—");
   });
 });

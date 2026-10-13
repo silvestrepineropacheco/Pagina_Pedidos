@@ -13,13 +13,16 @@ export const normalizarTexto = (valor: Celda): string =>
 
 /**
  * Convierte una celda en número. Acepta números y también textos con formato
- * argentino ("$ 1.234.567,50"), por si la planilla llega con valores formateados.
+ * argentino ("$ 1.234.567,50" o "1.441"), por si la planilla llega con los
+ * valores formateados en vez de los números puros.
  */
 export const aNumero = (valor: Celda): number => {
   if (typeof valor === "number") return Number.isFinite(valor) ? valor : 0;
   if (typeof valor !== "string") return 0;
   let texto = valor.replace(/[^\d.,-]/g, "");
   if (texto.includes(",")) texto = texto.replace(/\./g, "").replace(",", ".");
+  // Sin coma, un punto seguido de tres cifras es separador de miles ("1.441").
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(texto)) texto = texto.replace(/\./g, "");
   const numero = Number.parseFloat(texto);
   return Number.isFinite(numero) ? numero : 0;
 };

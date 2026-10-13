@@ -151,6 +151,86 @@ const extractSheetRows = (data: unknown): unknown[][] => {
   return [];
 };
 
+/* ------------------------- Planilla de pedidos de ventas ------------------------- */
+// Lectura (nunca escritura) de la hoja PEDIDOS para los reportes semanales de ventas.
+// El enlace de la planilla se guarda una sola vez en integration_targets.
+const SALES_SHEET_TARGET = "Planilla de pedidos de ventas";
+const SALES_SHEET_TAB = "PEDIDOS";
+const SALES_SHEET_RANGE = "A1:Z10000";
+
+const spreadsheetIdFrom = (value: string) => {
+  const fromLink = /\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/.exec(value)?.[1];
+  if (fromLink) return fromLink;
+  return /^[a-zA-Z0-9_-]{20,}$/.test(value.trim()) ? value.trim() : "";
+};
+
+const readSalesOrders = async (
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  userId: string,
+  body: Record<string, unknown> | null,
+) => {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, active")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!profile || !profile.active || (profile.role !== "admin" && profile.role !== "owner")) {
+    return jsonResponse({ error: "Solo los administradores pueden leer la planilla de pedidos." }, 403);
+  }
+
+  const provided = text(body?.spreadsheet).trim();
+  let spreadsheetId = "";
+  if (provided) {
+    spreadsheetId = spreadsheetIdFrom(provided);
+    if (!spreadsheetId) {
+      return jsonResponse({ error: "El enlace no parece ser de una planilla de Google Sheets." }, 400);
+    }
+  } else {
+    const { data: target } = await supabase
+      .from("integration_targets")
+      .select("external_id")
+      .eq("kind", "sheets_book")
+      .eq("name", SALES_SHEET_TARGET)
+      .maybeSingle();
+    spreadsheetId = text(target?.external_id);
+  }
+  if (!spreadsheetId) {
+    return jsonResponse({ error: "Todavía no se configuró la planilla de pedidos.", needs_config: true }, 400);
+  }
+
+  // Se piden los valores sin formato para que los importes lleguen como números.
+  // Si el conector no acepta el nombre de la pestaña, se lee la primera hoja.
+  let data: unknown = null;
+  let lastError = "";
+  for (const range of [`${SALES_SHEET_TAB}!${SALES_SHEET_RANGE}`, SALES_SHEET_RANGE]) {
+    try {
+      data = await callConnector(
+        TOKENS.sheets,
+        OPS.sheetsGet,
+        { spreadsheet_id: spreadsheetId, range, value_render_option: "UNFORMATTED_VALUE" },
+        "sheets.get",
+      );
+      break;
+    } catch (error) {
+      lastError = String(error);
+    }
+  }
+  if (data === null) {
+    return jsonResponse({ error: `No se pudo leer la planilla: ${lastError.slice(0, 300)}` }, 502);
+  }
+
+  // Recién cuando la lectura funcionó se recuerda la planilla para la próxima vez.
+  if (provided) {
+    await supabase.from("integration_targets").upsert(
+      { kind: "sheets_book", name: SALES_SHEET_TARGET, external_id: spreadsheetId },
+      { onConflict: "kind,name" },
+    );
+  }
+
+  return jsonResponse({ ok: true, spreadsheet_id: spreadsheetId, values: extractSheetRows(data) });
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -171,6 +251,10 @@ Deno.serve(async (req) => {
     if (userError || !userData?.user) return jsonResponse({ error: "Sesión inválida." }, 401);
 
     const body = await req.json().catch(() => ({}));
+    if (text(body?.action) === "read_sales_orders") {
+      return await readSalesOrders(supabase, userData.user.id, body);
+    }
+
     const requestId = text(body?.request_id);
     const event = text(body?.event) as SyncEvent;
 

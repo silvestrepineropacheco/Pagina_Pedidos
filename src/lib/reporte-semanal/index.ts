@@ -4,3 +4,4 @@ export { aNumero, leerPedidos, limpiarEspacios, normalizarTexto } from "./leer-p
 export { semanaIso, semanasPorDefecto } from "./semanas.ts";
 export type { ReglaCategoria } from "./categorias.config.ts";
 export type * from "./tipos.ts";
+export { formatoEntero, formatoKg, formatoPct, formatoPesos, formatoVariacion } from "./formato.ts";

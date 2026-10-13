@@ -16,6 +16,7 @@ import {
   Settings2,
   ShoppingCart,
   Tags,
+  TrendingUp,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -52,6 +53,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/catalogo", label: "Catálogo", icon: Tags, roles: ADMINS },
   { to: "/admin/usuarios", label: "Usuarios y permisos", icon: Users, roles: ["owner"] },
   { to: "/admin/reportes", label: "Reportes", icon: BarChart3, roles: ADMINS },
+  { to: "/admin/reportes-ventas", label: "Reportes de ventas", icon: TrendingUp, roles: ADMINS },
   { to: "/ayuda", label: "Cómo funciona", icon: BookOpen, roles: EVERYONE },
   { to: "/notificaciones", label: "Notificaciones", icon: Bell, roles: EVERYONE },
   { to: "/perfil", label: "Mi perfil", icon: Settings2, roles: EVERYONE },
