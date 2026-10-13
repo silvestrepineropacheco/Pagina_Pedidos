@@ -18,7 +18,7 @@ export interface Option<T extends string = string> {
 
 export const APP_NAME = "Manila | Pedidos y Compras";
 export const APP_SHORT_NAME = "Manila";
-export const APP_VERSION = "1.01";
+export const APP_VERSION = "1.02";
 export const DEFAULT_CURRENCY = "ARS";
 export const TIMEZONE = "America/Argentina/Buenos_Aires";
 
