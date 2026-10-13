@@ -1,12 +1,11 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "manila-pedidos",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "NODE_ENV=development vite build --mode development",
-    "build:prod": "vite build",
+    "build": "vite build",
     "check": "pnpm lint && pnpm exec tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -14,7 +13,6 @@
     "pInstall": "pnpm install"
   },
   "dependencies": {
-    "@enter-pro/analytics-sdk": "^0.0.10",
     "@hookform/resolvers": "^5.2.1",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -69,7 +67,6 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
-    "vite-plugin-enter-dev": "^0.0.16",
     "zod": "^4.1.5"
   },
   "devDependencies": {
@@ -87,7 +84,6 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
-    "pnpm": "8.6.12",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.2",

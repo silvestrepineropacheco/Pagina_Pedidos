@@ -1,1 +1,12 @@
-project_id = "spb-t4n755l57k7i4r19"
+project_id = "ighdkjmdqycphtbbcfej"
+
+# Cada función valida la sesión por su cuenta (auth.getUser), así que la
+# verificación previa del gateway queda apagada.
+[functions.manage-users]
+verify_jwt = false
+
+[functions.send-request-emails]
+verify_jwt = false
+
+[functions.manila-sync-e23b5a18faa9]
+verify_jwt = false
