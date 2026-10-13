@@ -1,3 +1,4 @@
+# Configuración del proyecto de Supabase de Manila (base de datos y funciones).
 project_id = "ighdkjmdqycphtbbcfej"
 
 # Cada función valida la sesión por su cuenta (auth.getUser), así que la
