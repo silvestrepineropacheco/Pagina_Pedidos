@@ -24,3 +24,7 @@ reports
 *.sln
 *.sw?
 code_template.zip
+
+# Datos reales de prueba (planilla de pedidos): nunca se suben al repositorio
+datos-prueba/
+*.xlsx

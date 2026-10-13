@@ -10,6 +10,7 @@
     "check": "pnpm lint && pnpm exec tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "node --test tests/reporte-semanal.test.ts",
     "pInstall": "pnpm install"
   },
   "dependencies": {

@@ -1,0 +1,171 @@
+import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { describe, it } from "node:test";
+import {
+  calcularReporteSemanal,
+  categoriaDe,
+  leerPedidos,
+  normalizarTexto,
+  semanaIso,
+  semanasPorDefecto,
+} from "../src/lib/reporte-semanal/index.ts";
+import { leerHojaXlsx } from "./ayuda/leer-xlsx.ts";
+
+// Copia de la planilla real. Está en .gitignore: no se sube al repositorio.
+const PLANILLA = path.join(import.meta.dirname, "..", "datos-prueba", "PEDIDOS_2026.xlsx");
+
+if (!existsSync(PLANILLA)) {
+  throw new Error(`Falta la planilla de prueba en ${PLANILLA}. Copiala ahí para correr los tests.`);
+}
+
+const { lineas } = leerPedidos(leerHojaXlsx(PLANILLA, "PEDIDOS"));
+const reporte = calcularReporteSemanal(lineas, { semanaA: 37, semanaB: 38 });
+
+const entero = (valor: number) => Math.round(valor);
+const claves = (nombres: string[]) => nombres.map(normalizarTexto).sort();
+
+describe("lectura de la hoja PEDIDOS", () => {
+  it("ignora filas sin número de pedido y pedidos cancelados", () => {
+    assert.ok(lineas.length > 0);
+    assert.ok(lineas.every((linea) => linea.nroPedido !== ""));
+    assert.ok(lineas.every((linea) => !normalizarTexto(linea.estado).startsWith("cancelado")));
+  });
+
+  it("cuenta los pedidos con estado vacío", () => {
+    assert.ok(lineas.some((linea) => linea.estado === ""));
+  });
+
+  it("agrupa clientes sin distinguir mayúsculas, tildes ni espacios", () => {
+    assert.equal(normalizarTexto("Artesanos del MAr"), normalizarTexto("  Artesanos  del Mar "));
+    assert.equal(normalizarTexto("Durañona"), normalizarTexto("DURANONA"));
+  });
+});
+
+describe("semanas", () => {
+  it("un lunes de la semana 42 compara 41 contra 40", () => {
+    const lunes = new Date(2026, 9, 12);
+    assert.equal(semanaIso(lunes), 42);
+    assert.deepEqual(semanasPorDefecto(lunes), { a: 40, b: 41 });
+  });
+
+  it("usa las semanas por defecto cuando no se eligen a mano", () => {
+    const porDefecto = calcularReporteSemanal(lineas, { hoy: new Date(2026, 9, 12) });
+    assert.deepEqual(porDefecto.semanas, { a: 40, b: 41 });
+  });
+
+  it("avisa si la semana siguiente a B no tiene pedidos", () => {
+    assert.equal(reporte.avisos.some((aviso) => aviso.includes("no esté cerrada")), false);
+    const abierta = calcularReporteSemanal(lineas, { semanaA: 40, semanaB: 41 });
+    assert.equal(abierta.avisos.some((aviso) => aviso.includes("no esté cerrada")), true);
+  });
+});
+
+describe("reporte semana 37 contra 38", () => {
+  const { indicadores } = reporte;
+
+  it("indicadores", () => {
+    assert.equal(entero(indicadores.totalFacturado.a), 28_650_861);
+    assert.equal(entero(indicadores.totalFacturado.b), 23_718_238);
+    assert.equal(entero(indicadores.kg.a), 1_441);
+    assert.equal(entero(indicadores.kg.b), 1_164);
+    assert.deepEqual([indicadores.pedidos.a, indicadores.pedidos.b], [21, 11]);
+    assert.deepEqual([indicadores.clientes.a, indicadores.clientes.b], [20, 11]);
+  });
+
+  it("ticket y precio promedio salen del total, los pedidos y los kg", () => {
+    assert.equal(entero(indicadores.ticketPromedio.a), entero(28_650_861.46 / 21));
+    assert.equal(entero(indicadores.precioPromedioKg.b), entero(23_718_238.3 / 1_164));
+  });
+
+  it("origen", () => {
+    const pct = (nombre: string) => {
+      const fila = reporte.origen.find((origen) => normalizarTexto(origen.origen) === normalizarTexto(nombre));
+      return [fila?.a.pct, fila?.b.pct];
+    };
+    assert.deepEqual(pct("Producción"), [42.1, 57.3]);
+    assert.deepEqual(pct("Stock Manila FrioD"), [41.6, 40.3]);
+    assert.deepEqual(pct("Stock Manila Bari"), [16.4, 2.4]);
+  });
+
+  it("recurrentes y ocasionales", () => {
+    const { recurrentes, ocasionales } = reporte.recurrentesVsOcasionales;
+    assert.deepEqual(
+      claves(recurrentes.clientes),
+      claves(["Artesanos del Mar", "Beli Granato", "RES", "Sepulveda", "Tomaauita"]),
+    );
+    assert.deepEqual([entero(recurrentes.a), entero(recurrentes.b)], [9_855_253, 21_139_438]);
+    assert.deepEqual([entero(ocasionales.a), entero(ocasionales.b)], [18_795_608, 2_578_800]);
+    assert.deepEqual([ocasionales.clientesA.length, ocasionales.clientesB.length], [15, 6]);
+  });
+
+  it("top de clientes", () => {
+    const [primeroA] = reporte.clientes.topA;
+    const [primeroB] = reporte.clientes.topB;
+    assert.equal(normalizarTexto(primeroA.cliente), normalizarTexto("Drigne SRL"));
+    assert.equal(entero(primeroA.total), 7_600_000);
+    assert.equal(normalizarTexto(primeroB.cliente), normalizarTexto("Artesanos del Mar"));
+    assert.equal(entero(primeroB.total), 7_332_500);
+    assert.equal(reporte.clientes.topA.length, 5);
+    assert.equal(reporte.clientes.soloEnA.length, 15);
+    assert.equal(reporte.clientes.soloEnB.length, 6);
+    assert.equal(reporte.clientes.recurrentes.length, 5);
+  });
+
+  it("contexto: promedio de las semanas 32 a 37", () => {
+    assert.deepEqual(reporte.contexto.semanasDelPromedio, [32, 33, 34, 35, 36, 37]);
+    assert.equal(entero(reporte.contexto.promedioSemanasAnteriores), 43_453_909);
+    assert.equal(reporte.contexto.ultimasSemanas.length, 10);
+    assert.equal(reporte.contexto.ultimasSemanas.at(-1)?.semana, 38);
+  });
+
+  it("no hay pedidos excepcionales en 37 ni en 38", () => {
+    assert.deepEqual(reporte.pedidosExcepcionales.a, []);
+    assert.deepEqual(reporte.pedidosExcepcionales.b, []);
+  });
+
+  it("las categorías suman el total de cada semana", () => {
+    const suma = (semana: "a" | "b") =>
+      reporte.categorias.filas.reduce((total, fila) => total + fila[semana], 0);
+    assert.equal(entero(suma("a")), 28_650_861);
+    assert.equal(entero(suma("b")), 23_718_238);
+  });
+
+  it("el resultado se puede guardar como JSON", () => {
+    assert.deepEqual(JSON.parse(JSON.stringify(reporte)), reporte);
+  });
+});
+
+describe("pedidos excepcionales", () => {
+  it("en la semana 41 el pedido 01-430 es el 78% de la semana", () => {
+    const semana41 = calcularReporteSemanal(lineas, { semanaA: 40, semanaB: 41 });
+    const [pedido] = semana41.pedidosExcepcionales.b;
+    assert.equal(semana41.pedidosExcepcionales.b.length, 1);
+    assert.equal(pedido.nroPedido, "01-430");
+    assert.equal(entero(pedido.pctDeLaSemana), 78);
+  });
+
+  it("el umbral es un parámetro", () => {
+    const exigente = calcularReporteSemanal(lineas, { semanaA: 40, semanaB: 41, umbralExcepcionalPct: 80 });
+    assert.deepEqual(exigente.pedidosExcepcionales.b, []);
+    const flexible = calcularReporteSemanal(lineas, { semanaA: 37, semanaB: 38, umbralExcepcionalPct: 25 });
+    assert.ok(flexible.pedidosExcepcionales.a.length > 0);
+  });
+});
+
+describe("categorías de producto", () => {
+  it("aplica la primera regla que coincide, sin distinguir mayúsculas", () => {
+    assert.equal(categoriaDe("Lata Paté de Salmon Ahumado"), "Latas");
+    assert.equal(categoriaDe("AHUMADA GRANDE"), "Ahumado");
+    assert.equal(categoriaDe("Filet Fresco PBO Trim D +600"), "Filet Trim D");
+    assert.equal(categoriaDe("FTD PBO 600/800"), "Filet Trim D");
+    assert.equal(categoriaDe("Trucha Desespinada Congelada 250-300"), "Trucha Desespinada");
+    assert.equal(categoriaDe("BF Fresca"), "BF (bife de trucha)");
+    assert.equal(categoriaDe("hon"), "Trucha entera (HON)");
+    assert.equal(categoriaDe("Trucha eviscerada fresca"), "Trucha entera (HON)");
+    assert.equal(categoriaDe("FTC IVP 200/300"), "Filet Trim C");
+    assert.equal(categoriaDe("Trucha Filet Fresca - PBO - Trim C (600-UP)"), "Filet Trim C");
+    assert.equal(categoriaDe("Filet fresco PBI"), "Filet fresco PBI/PBO");
+    assert.equal(categoriaDe("Algo que no existe"), "Otros");
+  });
+});
