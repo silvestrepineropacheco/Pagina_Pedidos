@@ -213,7 +213,7 @@ export const routers = [
     path: "/admin/reportes-ventas",
     name: "admin-reportes-ventas",
     element: (
-      <AccessRoute requireRole="admin">
+      <AccessRoute requireRole="owner">
         <SalesReportsPage />
       </AccessRoute>
     ),

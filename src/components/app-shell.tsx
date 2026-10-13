@@ -1,13 +1,15 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   BarChart3,
   Bell,
   BookOpen,
+  ChevronDown,
   ClipboardList,
   FileCheck2,
   Home,
   LayoutDashboard,
+  LineChart,
   LogOut,
   Menu,
   Package,
@@ -37,54 +39,140 @@ interface NavItem {
   roles: AppRole[];
 }
 
+/** Un grupo del menú: se abre y se cierra, y adentro tiene sus opciones. */
+interface NavGroup {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  items: NavItem[];
+}
+
+type NavEntry = NavItem | NavGroup;
+
 const EVERYONE: AppRole[] = ["encargado", "admin", "owner"];
 const ADMINS: AppRole[] = ["admin", "owner"];
+// La parte de ventas es solo para el Propietario.
+const OWNER: AppRole[] = ["owner"];
 
-const NAV_ITEMS: NavItem[] = [
+const NAV_ENTRIES: NavEntry[] = [
   { to: "/", label: "Inicio", icon: Home, roles: EVERYONE },
-  { to: "/nuevo", label: "Nuevo pedido", icon: Plus, roles: ["encargado"] },
-  { to: "/pedidos", label: "Pedidos", icon: ClipboardList, roles: ["encargado"] },
-  { to: "/admin", label: "Panel de gestión", icon: LayoutDashboard, roles: ADMINS },
-  { to: "/admin/pedidos", label: "Pedidos", icon: ClipboardList, roles: ADMINS },
-  { to: "/admin/recibidos", label: "Pedidos recibidos", icon: PackageCheck, roles: ADMINS },
-  { to: "/admin/revision-cambios", label: "Cambios a revisar", icon: FileCheck2, roles: ADMINS },
-  { to: "/admin/pendientes-compra", label: "Compras pendientes", icon: ShoppingCart, roles: ADMINS },
-  { to: "/admin/compras", label: "Compras registradas", icon: Package, roles: ADMINS },
-  { to: "/admin/catalogo", label: "Catálogo", icon: Tags, roles: ADMINS },
-  { to: "/admin/usuarios", label: "Usuarios y permisos", icon: Users, roles: ["owner"] },
-  { to: "/admin/reportes", label: "Reportes", icon: BarChart3, roles: ADMINS },
-  { to: "/admin/reportes-ventas", label: "Reportes de ventas", icon: TrendingUp, roles: ADMINS },
+  {
+    id: "pedidos-compras",
+    label: "Pedidos y Compras",
+    icon: ShoppingCart,
+    items: [
+      { to: "/nuevo", label: "Nuevo pedido", icon: Plus, roles: ["encargado"] },
+      { to: "/pedidos", label: "Pedidos", icon: ClipboardList, roles: ["encargado"] },
+      { to: "/admin", label: "Panel de gestión", icon: LayoutDashboard, roles: ADMINS },
+      { to: "/admin/pedidos", label: "Pedidos", icon: ClipboardList, roles: ADMINS },
+      { to: "/admin/recibidos", label: "Pedidos recibidos", icon: PackageCheck, roles: ADMINS },
+      { to: "/admin/revision-cambios", label: "Cambios a revisar", icon: FileCheck2, roles: ADMINS },
+      { to: "/admin/pendientes-compra", label: "Compras pendientes", icon: ShoppingCart, roles: ADMINS },
+      { to: "/admin/compras", label: "Compras registradas", icon: Package, roles: ADMINS },
+      { to: "/admin/catalogo", label: "Catálogo", icon: Tags, roles: ADMINS },
+      { to: "/admin/reportes", label: "Reportes", icon: BarChart3, roles: ADMINS },
+    ],
+  },
+  {
+    id: "ventas",
+    label: "Ventas",
+    icon: TrendingUp,
+    items: [{ to: "/admin/reportes-ventas", label: "Reporte de ventas", icon: LineChart, roles: OWNER }],
+  },
+  { to: "/admin/usuarios", label: "Usuarios y permisos", icon: Users, roles: OWNER },
   { to: "/ayuda", label: "Cómo funciona", icon: BookOpen, roles: EVERYONE },
   { to: "/notificaciones", label: "Notificaciones", icon: Bell, roles: EVERYONE },
   { to: "/perfil", label: "Mi perfil", icon: Settings2, roles: EVERYONE },
 ];
 
-const useNavItems = (role: AppRole | null) =>
-  NAV_ITEMS.filter((item) => (role ? item.roles.includes(role) : false));
+const isGroup = (entry: NavEntry): entry is NavGroup => "items" in entry;
+
+/** Opciones que puede ver el rol; los grupos sin ninguna opción visible no se muestran. */
+const entriesFor = (role: AppRole | null): NavEntry[] => {
+  if (!role) return [];
+  const result: NavEntry[] = [];
+  for (const entry of NAV_ENTRIES) {
+    if (isGroup(entry)) {
+      const items = entry.items.filter((item) => item.roles.includes(role));
+      if (items.length > 0) result.push({ ...entry, items });
+    } else if (entry.roles.includes(role)) {
+      result.push(entry);
+    }
+  }
+  return result;
+};
+
+// "/" y "/admin" son pantallas en sí mismas, no el comienzo de otras rutas.
+const isExact = (to: string) => to === "/" || to === "/admin";
+
+const matchesPath = (item: NavItem, pathname: string) =>
+  pathname === item.to || (!isExact(item.to) && pathname.startsWith(`${item.to}/`));
+
+const linkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+    isActive
+      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+  );
+
+const NavItemLink = ({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) => (
+  <NavLink to={item.to} end={isExact(item.to)} onClick={onNavigate} className={linkClass}>
+    <item.icon className="h-4 w-4 shrink-0" />
+    <span className="truncate">{item.label}</span>
+  </NavLink>
+);
 
 const NavList = ({ role, onNavigate }: { role: AppRole | null; onNavigate?: () => void }) => {
-  const items = useNavItems(role);
+  const { pathname } = useLocation();
+  const entries = useMemo(() => entriesFor(role), [role]);
+  const activeGroupId = useMemo(
+    () => entries.filter(isGroup).find((group) => group.items.some((item) => matchesPath(item, pathname)))?.id,
+    [entries, pathname],
+  );
+  const [openGroups, setOpenGroups] = useState<string[]>(activeGroupId ? [activeGroupId] : []);
+
+  // El grupo de la pantalla actual siempre queda abierto.
+  useEffect(() => {
+    if (activeGroupId) {
+      setOpenGroups((current) => (current.includes(activeGroupId) ? current : [...current, activeGroupId]));
+    }
+  }, [activeGroupId]);
+
+  const toggle = (id: string) =>
+    setOpenGroups((current) => (current.includes(id) ? current.filter((open) => open !== id) : [...current, id]));
+
   return (
     <nav className="flex flex-col gap-1">
-      {items.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.to === "/" || item.to === "/admin"}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            )
-          }
-        >
-          <item.icon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{item.label}</span>
-        </NavLink>
-      ))}
+      {entries.map((entry) => {
+        if (!isGroup(entry)) return <NavItemLink key={entry.to} item={entry} onNavigate={onNavigate} />;
+        const open = openGroups.includes(entry.id);
+        return (
+          <div key={entry.id}>
+            <button
+              type="button"
+              onClick={() => toggle(entry.id)}
+              aria-expanded={open}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                entry.id === activeGroupId && !open && "bg-sidebar-accent text-sidebar-accent-foreground",
+              )}
+            >
+              <entry.icon className="h-4 w-4 shrink-0" />
+              <span className="flex-1 truncate">{entry.label}</span>
+              <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
+            </button>
+            {open ? (
+              <div className="ml-5 mt-1 flex flex-col gap-1 border-l border-sidebar-border pl-2">
+                {entry.items.map((item) => (
+                  <NavItemLink key={item.to} item={item} onNavigate={onNavigate} />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </nav>
   );
 };

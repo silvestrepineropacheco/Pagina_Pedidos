@@ -244,8 +244,8 @@ const readSalesOrders = async (
     .select("role, active")
     .eq("id", userId)
     .maybeSingle();
-  if (!profile || !profile.active || (profile.role !== "admin" && profile.role !== "owner")) {
-    return jsonResponse({ error: "Solo los administradores pueden leer la planilla de pedidos." }, 403);
+  if (!profile || !profile.active || profile.role !== "owner") {
+    return jsonResponse({ error: "Solo el Propietario puede leer la planilla de pedidos de ventas." }, 403);
   }
 
   const provided = text(body?.spreadsheet).trim();
