@@ -247,12 +247,13 @@ const HelpPage = () => {
               steps={[
                 <>
                   <strong>“Panel de gestión”</strong> agrupa todo lo que necesita atención:
-                  solicitudes nuevas, urgentes, sin responsable, asignadas a mí, aprobadas pendientes
+                  solicitudes nuevas, urgentes, asignadas a mí, aprobadas pendientes
                   de compra, compras pendientes de recepción, entregas vencidas y cambios a revisar.
                 </>,
                 <>
-                  Abrí un pedido y tocá <strong>“Asignarme pedido”</strong> para quedar como
-                  responsable. Si otro administrador se adelantó, la aplicación te avisa.
+                  Cada pedido llega con un responsable que elige quien lo envía. Si no podés
+                  encargarte, abrí el pedido y tocá <strong>“Reasignar pedido”</strong>: elegí a
+                  quién se lo pasás y escribí el motivo. Queda en el historial y se avisa a todos.
                 </>,
                 <>
                   Aprobá o rechazá <strong>cada artículo</strong> por separado. Podés aprobar una

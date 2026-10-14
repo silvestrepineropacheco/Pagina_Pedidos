@@ -61,7 +61,6 @@ export interface RequestFilters {
   priority?: string;
   assignedAdminId?: string;
   requesterId?: string;
-  unassigned?: boolean;
   limit?: number;
 }
 
@@ -72,7 +71,6 @@ export const fetchRequests = (filters: RequestFilters = {}) => {
   if (filters.category) query = query.eq("category", filters.category);
   if (filters.priority) query = query.eq("priority", filters.priority);
   if (filters.assignedAdminId) query = query.eq("assigned_admin_id", filters.assignedAdminId);
-  if (filters.unassigned) query = query.is("assigned_admin_id", null);
   query = query.limit(filters.limit ?? 300);
   return run<RequestRow[]>(query);
 };

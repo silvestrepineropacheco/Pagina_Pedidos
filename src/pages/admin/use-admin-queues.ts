@@ -19,7 +19,6 @@ export interface AdminQueues {
   requests: RequestRow[];
   newRequests: RequestRow[];
   urgent: RequestRow[];
-  unassigned: RequestRow[];
   mine: RequestRow[];
   approvedPendingPurchase: RequestRow[];
   pendingReceipt: RequestRow[];
@@ -47,7 +46,6 @@ export const useAdminQueues = (): AdminQueues => {
       requests: list,
       newRequests: list.filter((request) => request.status === "pending_review"),
       urgent: list.filter((request) => request.priority === "urgente" && isOpen(request)),
-      unassigned: list.filter((request) => !request.assigned_admin_id && isOpen(request)),
       mine: list.filter((request) => request.assigned_admin_id === user?.id && isOpen(request)),
       approvedPendingPurchase: list.filter(
         (request) => request.status === "approved_pending_purchase",

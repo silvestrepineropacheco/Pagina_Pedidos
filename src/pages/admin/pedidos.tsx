@@ -72,14 +72,11 @@ const AdminRequestsPage = () => {
     if (priority !== ALL && request.priority !== priority) return false;
     if (status !== ALL && request.status !== status) return false;
     if (adminId !== ALL) {
-      if (adminId === "sin_asignar" ? Boolean(request.assigned_admin_id) : request.assigned_admin_id !== adminId) {
-        return false;
-      }
+      if (request.assigned_admin_id !== adminId) return false;
     }
     if (from && (request.submitted_at ?? request.created_at) < from) return false;
     if (to && (request.submitted_at ?? request.created_at) > `${to}T23:59:59`) return false;
     if (queue === "urgent" && request.priority !== "urgente") return false;
-    if (queue === "unassigned" && request.assigned_admin_id) return false;
     if (queue === "mine" && request.assigned_admin_id !== user?.id) return false;
 
     if (search.trim()) {
@@ -245,14 +242,13 @@ const AdminRequestsPage = () => {
         </div>
 
         <div className="space-y-1.5">
-          <Label>Responsable</Label>
+          <Label>Asignado a</Label>
           <Select value={adminId} onValueChange={setAdminId}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Todos</SelectItem>
-              <SelectItem value="sin_asignar">Sin asignar</SelectItem>
               {admins.map((admin) => (
                 <SelectItem key={admin.id} value={admin.id}>
                   {admin.full_name ?? admin.email}

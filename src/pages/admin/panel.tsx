@@ -8,7 +8,6 @@ import {
   PackageCheck,
   ShoppingCart,
   Truck,
-  UserCheck,
 } from "lucide-react";
 import { PageHeader } from "@/components/app-shell";
 import { StatusBadge } from "@/components/badges";
@@ -106,14 +105,6 @@ const AdminPanelPage = () => {
           to="/admin/pedidos?queue=urgent"
           icon={<AlertTriangle className="h-5 w-5" />}
           tone="danger"
-        />
-        <QueueCard
-          title="Pedidos sin responsable"
-          value={queues.unassigned.length}
-          description="Nadie los tomó todavía."
-          to="/admin/pedidos?queue=unassigned"
-          icon={<UserCheck className="h-5 w-5" />}
-          tone="warning"
         />
         <QueueCard
           title="Asignados a mí"

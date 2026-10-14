@@ -15,7 +15,6 @@ import {
   Repeat,
   Send,
   ShoppingCart,
-  UserPlus,
 } from "lucide-react";
 import { ItemStatusBadge, PriorityBadge, StatusBadge, ToneBadge } from "@/components/badges";
 import { AttachmentList, AttachmentLink } from "@/components/attachments";
@@ -59,7 +58,6 @@ import { usePeopleMaps } from "@/hooks/use-reference-data";
 import { useRequestBundle } from "@/hooks/use-requests";
 import {
   addComment,
-  assignRequest,
   reassignRequest,
   fetchIntegrationLog,
   createDraftRequest,
@@ -213,28 +211,6 @@ const RequestDetailPage = () => {
       toast({
         title: "No se pudo reasignar",
         description: friendlyError(reassignError, "No pudimos reasignar el pedido. Intentá nuevamente."),
-        variant: "destructive",
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleAssign = async () => {
-    if (!id || busy) return;
-    setBusy(true);
-    try {
-      await assignRequest(id, null, false);
-      await refresh();
-      toast({ title: "Pedido asignado" });
-    } catch (assignError) {
-      await refetch();
-      toast({
-        title: "No se pudo asignar",
-        description: friendlyError(
-          assignError,
-          "No pudimos asignar el pedido. Intentá nuevamente: puede que otro administrador lo haya tomado.",
-        ),
         variant: "destructive",
       });
     } finally {
@@ -487,12 +463,7 @@ const RequestDetailPage = () => {
           <div className="flex flex-wrap items-center gap-2">
             {isAdmin && request.submitted_at ? (
               <>
-                {!request.assigned_admin_id ? (
-                  <Button size="sm" onClick={() => void handleAssign()} disabled={busy}>
-                    <UserPlus className="h-4 w-4" />
-                    Asignarme pedido
-                  </Button>
-                ) : request.assigned_admin_id === user?.id ? (
+                {request.assigned_admin_id === user?.id ? (
                   <ToneBadge tone="success">Lo estoy gestionando</ToneBadge>
                 ) : null}
                 {request.assigned_admin_id && !CLOSED_STATUSES.includes(request.status) ? (
