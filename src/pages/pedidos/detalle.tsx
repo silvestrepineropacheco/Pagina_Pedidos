@@ -12,6 +12,7 @@ import {
   PackageCheck,
   Pencil,
   RefreshCw,
+  Repeat,
   Send,
   ShoppingCart,
   UserPlus,
@@ -31,7 +32,17 @@ import {
   ResolveChangeDialog,
   ReviewItemDialog,
 } from "@/components/requests/request-dialogs";
+import { AdminPicker } from "@/components/requests/admin-picker";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,11 +55,12 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/auth-context";
-import { usePeopleMaps, useProfiles } from "@/hooks/use-reference-data";
+import { usePeopleMaps } from "@/hooks/use-reference-data";
 import { useRequestBundle } from "@/hooks/use-requests";
 import {
   addComment,
   assignRequest,
+  reassignRequest,
   fetchIntegrationLog,
   createDraftRequest,
   insertRequestItems,
@@ -64,6 +76,9 @@ import { readSavedSizes } from "@/lib/sizes";
 import { can } from "@/lib/permissions";
 import type { RequestItemRow } from "@/lib/types";
 
+// En estos estados el pedido ya terminó: no se reasigna.
+const CLOSED_STATUSES = ["completed", "rejected", "cancelled"];
+
 const RequestDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -71,14 +86,17 @@ const RequestDetailPage = () => {
   const { user, role } = useAuth();
   const isAdmin = can.isAdmin(role);
   const { personName } = usePeopleMaps();
-  const { data: profiles } = useProfiles();
 
   const { data: bundle, isLoading, error, refetch } = useRequestBundle(id, { emails: isAdmin });
 
   const [comment, setComment] = useState("");
   const [commenting, setCommenting] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignTo, setReassignTo] = useState<string>("");
+  const [reassignReason, setReassignReason] = useState("");
+  // Responsable elegido al enviar un borrador desde esta pantalla.
+  const [submitTo, setSubmitTo] = useState<string>("");
   const [reviewItem, setReviewItem] = useState<RequestItemRow | null>(null);
   const [reviewMode, setReviewMode] = useState<"approve" | "reject" | "info">("approve");
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -170,14 +188,45 @@ const RequestDetailPage = () => {
     await queryClient.invalidateQueries({ queryKey: ["requests"] });
   };
 
-  const handleAssign = async (adminId?: string, reassign = false) => {
+  const handleReassign = async () => {
+    if (!id || busy) return;
+    if (!reassignTo || !reassignReason.trim()) {
+      toast({
+        title: "Faltan datos",
+        description: "Elegí a quién le pasás el pedido y escribí el motivo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      await reassignRequest(id, reassignTo, reassignReason.trim());
+      await refresh();
+      toast({
+        title: "Pedido reasignado",
+        description: `Ahora lo gestiona ${personName(reassignTo) ?? "otro administrador"}. Se avisó al solicitante.`,
+      });
+      setReassignOpen(false);
+      setReassignTo("");
+      setReassignReason("");
+    } catch (reassignError) {
+      toast({
+        title: "No se pudo reasignar",
+        description: friendlyError(reassignError, "No pudimos reasignar el pedido. Intentá nuevamente."),
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAssign = async () => {
     if (!id || busy) return;
     setBusy(true);
     try {
-      await assignRequest(id, adminId ?? null, reassign);
+      await assignRequest(id, null, false);
       await refresh();
-      toast({ title: reassign ? "Pedido reasignado" : "Pedido asignado" });
-      setReassignTo("");
+      toast({ title: "Pedido asignado" });
     } catch (assignError) {
       await refetch();
       toast({
@@ -195,9 +244,17 @@ const RequestDetailPage = () => {
 
   const handleSubmitDraft = async () => {
     if (!id) return;
+    if (!request?.assigned_admin_id && !submitTo) {
+      toast({
+        title: "Falta el responsable",
+        description: "Elegí a qué administrador le enviás el pedido.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy(true);
     try {
-      const submitted = await submitRequest(id);
+      const submitted = await submitRequest(id, submitTo || null);
       syncInBackground(submitted.id, submitted.status);
       try {
         await sendRequestEmails(id);
@@ -341,9 +398,6 @@ const RequestDetailPage = () => {
 
   const isMine = request.requester_id === user?.id;
   const canEditDraft = isMine && (request.status === "draft" || request.status === "needs_info");
-  const admins = (profiles ?? []).filter(
-    (profile) => (profile.role === "admin" || profile.role === "owner") && profile.active,
-  );
   const attachments = items.map((item) => item.photo_path).filter(Boolean) as string[];
   const machinery = request.category === "maquinaria";
 
@@ -389,8 +443,8 @@ const RequestDetailPage = () => {
               <p>{request.submitted_at ? formatDateTime(request.submitted_at) : "Sin enviar"}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Responsable</p>
-              <p>{personName(request.assigned_admin_id) ?? "Sin asignar"}</p>
+              <p className="text-muted-foreground">Asignado a</p>
+              <p className="font-medium">{personName(request.assigned_admin_id) ?? "Sin asignar"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Días desde el envío</p>
@@ -418,39 +472,33 @@ const RequestDetailPage = () => {
             </div>
           ) : null}
 
-          <div className="flex flex-wrap gap-2">
-            {isAdmin ? (
+          {canEditDraft && !request.assigned_admin_id ? (
+            <div className="max-w-sm">
+              <AdminPicker
+                id="enviar-borrador-a"
+                label="¿A qué administrador se lo enviás?"
+                help="Es obligatorio: esa persona queda como responsable y recibe el aviso."
+                value={submitTo}
+                onChange={setSubmitTo}
+              />
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {isAdmin && request.submitted_at ? (
               <>
-                {request.assigned_admin_id !== user?.id ? (
+                {!request.assigned_admin_id ? (
                   <Button size="sm" onClick={() => void handleAssign()} disabled={busy}>
                     <UserPlus className="h-4 w-4" />
                     Asignarme pedido
                   </Button>
-                ) : (
+                ) : request.assigned_admin_id === user?.id ? (
                   <ToneBadge tone="success">Lo estoy gestionando</ToneBadge>
-                )}
-                <Select value={reassignTo} onValueChange={(value) => setReassignTo(value)}>
-                  <SelectTrigger className="h-9 w-56">
-                    <SelectValue placeholder="Reasignar a..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {admins
-                      .filter((admin) => admin.id !== request.assigned_admin_id)
-                      .map((admin) => (
-                        <SelectItem key={admin.id} value={admin.id}>
-                          {admin.full_name ?? admin.email}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                {reassignTo ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void handleAssign(reassignTo, true)}
-                    disabled={busy}
-                  >
-                    Confirmar reasignación
+                ) : null}
+                {request.assigned_admin_id && !CLOSED_STATUSES.includes(request.status) ? (
+                  <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)} disabled={busy}>
+                    <Repeat className="h-4 w-4" />
+                    Reasignar pedido
                   </Button>
                 ) : null}
               </>
@@ -466,7 +514,11 @@ const RequestDetailPage = () => {
             ) : null}
 
             {canEditDraft ? (
-              <Button size="sm" onClick={() => void handleSubmitDraft()} disabled={busy}>
+              <Button
+                size="sm"
+                onClick={() => void handleSubmitDraft()}
+                disabled={busy || (!request.assigned_admin_id && !submitTo)}
+              >
                 <Send className="h-4 w-4" />
                 Enviar solicitud
               </Button>
@@ -1029,6 +1081,46 @@ const RequestDetailPage = () => {
         items={items}
         pendingById={aggregates.pendingById}
       />
+
+      <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reasignar pedido {request.folio ?? ""}</DialogTitle>
+            <DialogDescription>
+              Hoy lo gestiona {personName(request.assigned_admin_id) ?? "otro administrador"}. El cambio queda en el
+              historial y se avisa al nuevo responsable y al solicitante.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <AdminPicker
+              id="reasignar-a"
+              label="Pasárselo a"
+              value={reassignTo}
+              onChange={setReassignTo}
+              excludeId={request.assigned_admin_id}
+            />
+            <div className="space-y-1.5">
+              <Label htmlFor="motivo-reasignacion">Motivo (obligatorio)</Label>
+              <Textarea
+                id="motivo-reasignacion"
+                value={reassignReason}
+                onChange={(event) => setReassignReason(event.target.value)}
+                placeholder="Por ejemplo: estoy de licencia esta semana"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReassignOpen(false)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button onClick={() => void handleReassign()} disabled={busy || !reassignTo || !reassignReason.trim()}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Repeat className="h-4 w-4" />}
+              Reasignar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ReviewItemDialog
         open={reviewOpen}

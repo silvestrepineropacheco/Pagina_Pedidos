@@ -46,6 +46,7 @@ import type { Priority, RequestCategory } from "@/lib/types";
 import { AttachmentList, AttachmentManager } from "@/components/attachments";
 import { ErrorState } from "@/components/feedback";
 import { ItemEditor } from "./item-editor";
+import { AdminPicker } from "@/components/requests/admin-picker";
 import { readSavedAttachments } from "@/lib/sizes";
 import {
   createEmptyItem,
@@ -90,6 +91,8 @@ const RequestFormPage = () => {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // Administrador responsable: obligatorio para enviar el pedido.
+  const [assignTo, setAssignTo] = useState("");
   const [removedItemIds, setRemovedItemIds] = useState<string[]>([]);
   const loadedRef = useRef<string | null>(null);
 
@@ -99,6 +102,7 @@ const RequestFormPage = () => {
     loadedRef.current = draftId;
 
     const { request, items } = bundle;
+    if (request.assigned_admin_id) setAssignTo(request.assigned_admin_id);
     const firstItem = items[0];
 
     setState((previous) => ({
@@ -278,6 +282,10 @@ const RequestFormPage = () => {
 
   const handleConfirmSend = async () => {
     if (sending) return;
+    if (!assignTo) {
+      toast({ title: "Falta el responsable", description: "Elegí a qué administrador le enviás el pedido.", variant: "destructive" });
+      return;
+    }
     setSending(true);
     try {
       const id = await persist(true);
@@ -285,7 +293,7 @@ const RequestFormPage = () => {
         setSummaryOpen(false);
         return;
       }
-      const submitted = await submitRequest(id);
+      const submitted = await submitRequest(id, assignTo);
       setSummaryOpen(false);
       // Refleja el pedido en Gmail, Drive y Sheets sin bloquear el envio.
       syncInBackground(submitted.id, submitted.status);
@@ -310,7 +318,7 @@ const RequestFormPage = () => {
       await queryClient.invalidateQueries({ queryKey: ["requests"] });
       toast({
         title: `Solicitud ${submitted.folio ?? ""} enviada`,
-        description: "Los administradores ya pueden revisarla.",
+        description: "Le llegó el aviso al administrador que elegiste.",
         action: (
           <ToastAction altText="Abrir el pedido" onClick={() => navigate(`/pedidos/${id}`)}>
             Abrir
@@ -826,11 +834,27 @@ const RequestFormPage = () => {
             ) : null}
           </div>
 
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <AdminPicker
+              id="enviar-a"
+              label="¿A qué administrador se lo enviás?"
+              help="Esa persona queda como responsable del pedido y recibe el aviso."
+              value={assignTo}
+              onChange={setAssignTo}
+            />
+            {state.priority === "urgente" || isMachinery ? (
+              <p className="text-xs text-muted-foreground">
+                Por ser {state.priority === "urgente" ? "urgente" : "de maquinaria y mejoras"}, además se avisa a todos los
+                administradores.
+              </p>
+            ) : null}
+          </div>
+
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setSummaryOpen(false)} disabled={sending}>
               Seguir editando
             </Button>
-            <Button onClick={handleConfirmSend} disabled={sending}>
+            <Button onClick={handleConfirmSend} disabled={sending || !assignTo}>
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Confirmar envío
             </Button>

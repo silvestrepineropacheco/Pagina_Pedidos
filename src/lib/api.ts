@@ -126,8 +126,24 @@ export const deleteRequestItem = (id: string) =>
 export const updateRequestItem = (id: string, patch: RequestItemUpdate) =>
   run<RequestItemRow[]>(db().from("request_items").update(patch).eq("id", id).select("*"));
 
-export const submitRequest = (requestId: string) =>
-  run<RequestRow>(db().rpc("submit_request", { p_request_id: requestId }));
+export const submitRequest = (requestId: string, adminId?: string | null) =>
+  run<RequestRow>(db().rpc("submit_request", { p_request_id: requestId, p_admin_id: adminId ?? null }));
+
+export interface AssignableAdmin {
+  id: string;
+  full_name: string | null;
+  role: "admin" | "owner";
+}
+
+/** Administradores y Propietario activos: a quienes se les puede enviar un pedido. */
+export const fetchAssignableAdmins = () =>
+  run<AssignableAdmin[]>(db().rpc("list_assignable_admins", {}));
+
+/** Pasa el pedido a otro administrador. El motivo es obligatorio y queda en el historial. */
+export const reassignRequest = (requestId: string, adminId: string, reason: string) =>
+  run<RequestRow>(
+    db().rpc("reassign_request", { p_request_id: requestId, p_admin_id: adminId, p_reason: reason }),
+  );
 
 export const assignRequest = (requestId: string, adminId?: string | null, reassign = false) =>
   run<RequestRow>(

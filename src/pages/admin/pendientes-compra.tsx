@@ -37,6 +37,14 @@ const PurchasePendingPage = () => {
     return map;
   }, [requests]);
 
+  const assignedOf = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const request of requests ?? []) {
+      map.set(request.id, request.assigned_admin_id);
+    }
+    return map;
+  }, [requests]);
+
   const groups = useMemo(() => {
     const map = new Map<string, Group>();
     for (const row of data ?? []) {
@@ -143,6 +151,12 @@ const PurchasePendingPage = () => {
                       <p className="text-xs text-muted-foreground">
                         {personName(requesterOf.get(row.request_id) ?? null) ?? "Solicitante"} · aprobado{" "}
                         {formatQty(row.approved_qty)} · ya comprado {formatQty(row.purchased_qty)}
+                      </p>
+                      <p className="text-xs">
+                        <span className="text-muted-foreground">Asignado a: </span>
+                        <span className="font-medium text-foreground">
+                          {personName(assignedOf.get(row.request_id) ?? null) ?? "sin asignar"}
+                        </span>
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

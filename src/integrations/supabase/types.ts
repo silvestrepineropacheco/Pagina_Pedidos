@@ -4667,8 +4667,20 @@ export type Database = {
         Args: { p_request: string }
         Returns: number
       }
+      list_assignable_admins: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          full_name: string | null
+          id: string
+          role: string
+        }[]
+      }
+      reassign_request: {
+        Args: { p_admin_id: string; p_reason: string; p_request_id: string }
+        Returns: Database["public"]["Tables"]["requests"]["Row"]
+      }
       submit_request: {
-        Args: { p_request_id: string }
+        Args: { p_admin_id?: string | null; p_request_id: string }
         Returns: {
           assigned_admin_id: string | null
           category: string

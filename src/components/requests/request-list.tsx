@@ -16,9 +16,9 @@ interface RequestListProps {
 
 const Responsible = ({ name }: { name: string | null }) =>
   name ? (
-    <span className="text-sm text-foreground">{name}</span>
+    <span className="text-sm font-medium text-foreground">{name}</span>
   ) : (
-    <span className="text-xs text-muted-foreground">Sin responsable</span>
+    <span className="text-xs font-medium text-destructive">Sin asignar</span>
   );
 
 export const RequestList = ({
@@ -43,7 +43,7 @@ export const RequestList = ({
               <TableHead>Solicitante</TableHead>
               <TableHead>Prioridad</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Responsable</TableHead>
+              <TableHead>Asignado a</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -102,7 +102,10 @@ export const RequestList = ({
               <span className="text-xs text-muted-foreground">{categoryLabel(request.category)}</span>
             </div>
             <div className="mt-2 text-xs text-muted-foreground">
-              Responsable: {personName(request.assigned_admin_id) ?? "sin asignar"}
+              Asignado a:{" "}
+              <span className="font-medium text-foreground">
+                {personName(request.assigned_admin_id) ?? "sin asignar"}
+              </span>
             </div>
           </Link>
         ))}
