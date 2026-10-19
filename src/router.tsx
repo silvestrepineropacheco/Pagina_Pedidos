@@ -123,7 +123,7 @@ export const routers = [
     path: "/admin/pedidos",
     name: "admin-pedidos",
     element: (
-      <AccessRoute requireRole="compras">
+      <AccessRoute requireRole="pedidos">
         <AdminRequestsPage />
       </AccessRoute>
     ),
@@ -141,7 +141,7 @@ export const routers = [
     path: "/admin/recibidos",
     name: "admin-pedidos-recibidos",
     element: (
-      <AccessRoute requireRole="compras">
+      <AccessRoute requireRole="pedidos">
         <ReceivedOrdersPage />
       </AccessRoute>
     ),

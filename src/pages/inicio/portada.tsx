@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Loader2, Minus, ShoppingCart, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Loader2, Minus, Plus, ShoppingCart, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/auth-context";
@@ -150,6 +150,12 @@ const PortadaPage = () => {
           Hola{profile?.full_name ? `, ${profile.full_name}` : ""}
         </h1>
         <p className="mt-1 text-sm text-primary-foreground/80">Elegí con qué querés trabajar.</p>
+        <Button asChild size="lg" variant="secondary" className="mt-4">
+          <Link to="/nuevo">
+            <Plus className="h-4 w-4" />
+            Hacer un pedido
+          </Link>
+        </Button>
       </div>
 
       <div className={`grid gap-4 ${verVentas ? "lg:grid-cols-2" : ""}`}>

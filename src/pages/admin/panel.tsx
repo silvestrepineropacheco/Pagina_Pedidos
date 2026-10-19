@@ -6,6 +6,7 @@ import {
   ClipboardList,
   FileCheck2,
   PackageCheck,
+  Plus,
   ShoppingCart,
   Truck,
 } from "lucide-react";
@@ -14,7 +15,9 @@ import { StatusBadge } from "@/components/badges";
 import { ErrorState, LoadingState } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/auth-context";
 import { usePeopleMaps } from "@/hooks/use-reference-data";
+import { can } from "@/lib/permissions";
 import { formatDate, formatQty } from "@/lib/format";
 import { useAdminQueues } from "./use-admin-queues";
 
@@ -63,6 +66,7 @@ const QueueCard = ({
 };
 
 const AdminPanelPage = () => {
+  const { role } = useAuth();
   const { personName } = usePeopleMaps();
   const queues = useAdminQueues();
 
@@ -80,12 +84,22 @@ const AdminPanelPage = () => {
         title="Panel de gestión"
         description="Todo lo que necesita atención, ordenado por tipo de pendiente."
         actions={
-          <Button asChild>
-            <Link to="/admin/compras/nueva">
-              <ShoppingCart className="h-4 w-4" />
-              Registrar compra
-            </Link>
-          </Button>
+          <>
+            <Button asChild>
+              <Link to="/nuevo">
+                <Plus className="h-4 w-4" />
+                Hacer un pedido
+              </Link>
+            </Button>
+            {can.registerPurchase(role) ? (
+              <Button asChild variant="outline">
+                <Link to="/admin/compras/nueva">
+                  <ShoppingCart className="h-4 w-4" />
+                  Registrar compra
+                </Link>
+              </Button>
+            ) : null}
+          </>
         }
       />
 

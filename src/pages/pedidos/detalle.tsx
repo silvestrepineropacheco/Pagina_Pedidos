@@ -436,7 +436,7 @@ const RequestDetailPage = () => {
     <div className="space-y-4 pb-6">
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
-          <Link to={can.registerPurchase(role) ? "/admin/pedidos" : "/pedidos"}>
+          <Link to={can.viewOrders(role) ? "/admin/pedidos" : "/pedidos"}>
             <ArrowLeft className="h-4 w-4" />
             Volver
           </Link>

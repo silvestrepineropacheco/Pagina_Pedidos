@@ -13,8 +13,10 @@ export const can = {
   createRequest: (role?: AppRole | null) => role === "encargado" || role === "admin" || role === "owner",
   reviewRequests: (role?: AppRole | null) => role === "owner" || role === "admin",
   reviewChanges: (role?: AppRole | null) => role === "owner" || role === "admin",
-  /** Finanzas registra compras; administradores y Propietario también pueden. */
-  registerPurchase: (role?: AppRole | null) => role === "owner" || role === "admin" || role === "finanzas",
+  /** Registrar compras: Finanzas y el Propietario. Los administradores no. */
+  registerPurchase: (role?: AppRole | null) => role === "owner" || role === "finanzas",
+  /** Ver la lista de todos los pedidos y los recibidos. */
+  viewOrders: (role?: AppRole | null) => role === "owner" || role === "admin" || role === "finanzas",
   registerReceipt: () => true,
   manageCatalog: (role?: AppRole | null) => role === "owner" || role === "admin",
   manageUsers: (role?: AppRole | null) => role === "owner",

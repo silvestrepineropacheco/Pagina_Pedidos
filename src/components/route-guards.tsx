@@ -15,8 +15,8 @@ export const AccessRoute = ({
   requireRole,
 }: {
   children: React.ReactNode;
-  /** "compras": administradores, Propietario y Finanzas. */
-  requireRole?: "admin" | "owner" | "compras";
+  /** "pedidos": administradores, Propietario y Finanzas. "compras": Propietario y Finanzas. */
+  requireRole?: "admin" | "owner" | "pedidos" | "compras";
 }) => {
   const { user, profile, role, ready } = useAuth();
   const location = useLocation();
@@ -31,6 +31,7 @@ export const AccessRoute = ({
 
   if (requireRole === "admin" && !can.isAdmin(role)) return <Navigate to="/" replace />;
   if (requireRole === "owner" && !can.isOwner(role)) return <Navigate to="/" replace />;
+  if (requireRole === "pedidos" && !can.viewOrders(role)) return <Navigate to="/" replace />;
   if (requireRole === "compras" && !can.registerPurchase(role)) return <Navigate to="/" replace />;
 
   return <AppShell>{children}</AppShell>;
