@@ -117,8 +117,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete") {
-      // Solo cuentas que nunca fueron autorizadas: no tienen pedidos ni movimientos.
-      // Las cuentas que ya se usaron se desactivan, así se conserva su historial.
+      // Se pueden eliminar cuentas pendientes o desactivadas, nunca la del Propietario.
+      // Si la cuenta tiene pedidos, compras u otros movimientos, la base rechaza el
+      // borrado (para no perder historial) y la cuenta queda desactivada.
       const userId = body?.user_id as string;
       if (!userId) return jsonResponse({ error: "Falta el usuario." }, 400);
       if (userId === userData.user.id) {
@@ -129,18 +130,24 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Eliminar cuentas no está disponible en este entorno (falta el service role)." }, 501);
       }
       const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-      const { data: target } = await admin.from("profiles").select("id, role").eq("id", userId).maybeSingle();
+      const { data: target } = await admin.from("profiles").select("id, role, active").eq("id", userId).maybeSingle();
       if (!target) return jsonResponse({ error: "La cuenta ya no existe." }, 404);
-      if (target.role !== "pending") {
-        return jsonResponse(
-          { error: "Solo se pueden eliminar cuentas que todavía no fueron autorizadas. Las cuentas en uso se desactivan." },
-          400,
-        );
+      if (target.role === "owner") {
+        return jsonResponse({ error: "La cuenta del Propietario no se puede eliminar." }, 400);
+      }
+      if (target.role !== "pending" && target.active) {
+        return jsonResponse({ error: "Primero desactivá la cuenta; después la podés eliminar." }, 400);
       }
       const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
       if (deleteError) {
         console.error("deleteUser fallo", deleteError.message);
-        return jsonResponse({ error: "No se pudo eliminar la cuenta. Probá de nuevo." }, 400);
+        return jsonResponse(
+          {
+            error:
+              "Esta cuenta tiene pedidos, compras u otros movimientos registrados: no se puede eliminar sin perder ese historial. Queda desactivada y no puede ingresar.",
+          },
+          400,
+        );
       }
       return jsonResponse({ status: "deleted", user_id: userId });
     }

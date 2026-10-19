@@ -188,7 +188,7 @@ const UsersPage = () => {
               Autorizar
             </Button>
           ) : null}
-          {profile.role === "pending" ? (
+          {(profile.role === "pending" || !profile.active) && profile.role !== "owner" ? (
             <Button
               size="sm"
               variant="outline"
@@ -427,7 +427,8 @@ const UsersPage = () => {
             <AlertDialogTitle>¿Eliminar esta cuenta?</AlertDialogTitle>
             <AlertDialogDescription>
               Se elimina la cuenta de <strong>{toDelete?.full_name ?? toDelete?.email}</strong> ({toDelete?.email}). No
-              se puede deshacer: si la persona necesita acceso más adelante, tiene que registrarse de nuevo.
+              se puede deshacer: si la persona necesita acceso más adelante, tiene que registrarse de nuevo. Si la cuenta
+              ya tiene pedidos o movimientos, no se elimina: queda desactivada para conservar el historial.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
