@@ -55,7 +55,7 @@ const SalesReportsPage = () => {
   const a = semanaValida(semanaA);
   const b = semanaValida(semanaB);
   const reporte = useMemo(
-    () => (lectura && a && b ? calcularReporteSemanal(lectura.lineas, { semanaA: a, semanaB: b }) : null),
+    () => (lectura && a && b ? calcularReporteSemanal(lectura.lineas, { semanaA: a, semanaB: b, casosParaRevisar: lectura.revisar }) : null),
     [lectura, a, b],
   );
 
@@ -161,6 +161,18 @@ const SalesReportsPage = () => {
                     {aviso}
                   </p>
                 ))}
+                {reporte.casosParaRevisar.length > 0 ? (
+                  <details className="pl-6">
+                    <summary className="cursor-pointer font-medium">Ver los renglones para revisar en la planilla</summary>
+                    <ul className="mt-2 space-y-1">
+                      {reporte.casosParaRevisar.map((caso) => (
+                        <li key={`${caso.fila}-${caso.motivo}`}>
+                          Fila {caso.fila} · pedido {caso.nroPedido} · {caso.producto}: {caso.motivo}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
                 {reporte.categorias.productosEnOtros.length > 0 ? (
                   <p className="flex items-start gap-2">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

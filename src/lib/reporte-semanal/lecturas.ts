@@ -8,6 +8,8 @@ import type { Comparacion, ReporteSemanal } from "./tipos.ts";
 export interface Lecturas {
   resumen: string[];
   contexto: string;
+  /** Cuánto de la diferencia entre semanas explican los clientes de la tabla. */
+  cambio: string;
   recurrentes: string;
   excepcionales: string | null;
   categorias: string;
@@ -46,11 +48,11 @@ export const lecturasDelReporte = (reporte: ReporteSemanal): Lecturas => {
       : `En la semana ${b} se vendieron ${formatoPesos(total.b)} sin IVA: la venta ${movimiento(total)} contra la semana ${a} (${formatoPesos(total.a)}).`,
   );
   resumen.push(
-    `Fueron ${plural(indicadores.pedidos.b, "pedido", "pedidos")} de ${plural(indicadores.clientes.b, "cliente", "clientes")} y ${formatoKg(indicadores.kg.b)}. La semana anterior habían sido ${plural(indicadores.pedidos.a, "pedido", "pedidos")} de ${plural(indicadores.clientes.a, "cliente", "clientes")} y ${formatoKg(indicadores.kg.a)}.`,
+    `Fueron ${plural(indicadores.pedidos.b, "pedido", "pedidos")} de ${plural(indicadores.clientes.b, "cliente", "clientes")} y ${formatoKg(indicadores.kg.b)}${indicadores.unidades.b > 0 ? ` más ${plural(indicadores.unidades.b, "lata", "latas")}` : ""}. La semana anterior habían sido ${plural(indicadores.pedidos.a, "pedido", "pedidos")} de ${plural(indicadores.clientes.a, "cliente", "clientes")} y ${formatoKg(indicadores.kg.a)}${indicadores.unidades.a > 0 ? ` más ${plural(indicadores.unidades.a, "lata", "latas")}` : ""}.`,
   );
   if (indicadores.pedidos.a > 0 && indicadores.pedidos.b > 0) {
     resumen.push(
-      `Cada pedido fue en promedio de ${formatoPesos(indicadores.ticketPromedio.b)} (antes ${formatoPesos(indicadores.ticketPromedio.a)}), y el kilo se vendió en promedio a ${formatoPesos(indicadores.precioPromedioKg.b)} (antes ${formatoPesos(indicadores.precioPromedioKg.a)}).`,
+      `Cada pedido fue en promedio de ${formatoPesos(indicadores.ticketPromedio.b)} (antes ${formatoPesos(indicadores.ticketPromedio.a)}), y el kilo se vendió en promedio a ${formatoPesos(indicadores.precioPromedioKg.b)} (antes ${formatoPesos(indicadores.precioPromedioKg.a)}; sin contar latas).`,
     );
   }
 
@@ -60,6 +62,19 @@ export const lecturasDelReporte = (reporte: ReporteSemanal): Lecturas => {
     contexto.semanasDelPromedio.length === 0 || diferencia.pct === null
       ? `Todavía no hay semanas anteriores suficientes para comparar la semana ${b} con lo habitual.`
       : `Las ${contexto.semanasDelPromedio.length} semanas anteriores vendieron en promedio ${formatoPesos(contexto.promedioSemanasAnteriores)}. La semana ${b} quedó ${sinSigno(diferencia.pct)} ${diferencia.pct >= 0 ? "por encima" : "por debajo"} de ese nivel habitual.`;
+
+  // Clientes que explican el cambio
+  const diferenciaTotal = total.b - total.a;
+  const explicada = clientes.queExplicanElCambio.reduce((suma, fila) => suma + fila.diferencia, 0);
+  let lecturaCambio = `La venta fue igual en las dos semanas.`;
+  if (diferenciaTotal !== 0) {
+    const principal = clientes.queExplicanElCambio[0];
+    lecturaCambio = `De la semana ${a} a la ${b} la venta ${diferenciaTotal > 0 ? "subió" : "bajó"} ${formatoPesos(Math.abs(diferenciaTotal))}.`;
+    if (principal) {
+      lecturaCambio += ` El cambio más grande fue ${principal.cliente}: ${principal.diferencia > 0 ? "compró" : "dejó de comprar"} ${formatoPesos(Math.abs(principal.diferencia))} ${principal.diferencia > 0 ? "más" : "respecto de la semana anterior"}.`;
+      lecturaCambio += ` Entre los ${plural(clientes.queExplicanElCambio.length, "cliente", "clientes")} de la tabla suman ${explicada >= 0 ? "+" : "-"}${formatoPesos(Math.abs(explicada))}: hay subas y bajas que se compensan entre sí.`;
+    }
+  }
 
   // Recurrentes y ocasionales
   const partes: string[] = [];
@@ -153,6 +168,7 @@ export const lecturasDelReporte = (reporte: ReporteSemanal): Lecturas => {
   return {
     resumen,
     contexto: lecturaContexto,
+    cambio: lecturaCambio,
     recurrentes: partes.join(" "),
     excepcionales,
     categorias: lecturaCategorias,

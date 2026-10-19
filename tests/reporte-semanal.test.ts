@@ -4,6 +4,10 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import {
   aNumero,
+  anioDeSemana,
+  fechaDeCelda,
+  infoDeSemana,
+  seVendePorUnidad,
   calcularReporteSemanal,
   categoriaDe,
   formatoKg,
@@ -57,7 +61,7 @@ describe("semanas", () => {
 
   it("usa las semanas por defecto cuando no se eligen a mano", () => {
     const porDefecto = calcularReporteSemanal(lineas, { hoy: new Date(2026, 9, 12) });
-    assert.deepEqual(porDefecto.semanas, { a: 40, b: 41 });
+    assert.deepEqual([porDefecto.semanas.a, porDefecto.semanas.b], [40, 41]);
   });
 
   it("avisa si la semana siguiente a B no tiene pedidos", () => {
@@ -250,5 +254,70 @@ describe("explicaciones en palabras", () => {
     assert.equal(formatoPesosCorto(28650861), "$28,7 M");
     assert.equal(formatoPesosCorto(254800), "$255 mil");
     assert.equal(formatoPesosCorto(0), "$0");
+  });
+});
+
+describe("latas, fechas de semana y datos para revisar", () => {
+  const lectura = leerPedidos(leerHojaXlsx(PLANILLA, "PEDIDOS"));
+  const semana41 = calcularReporteSemanal(lectura.lineas, {
+    semanaA: 40,
+    semanaB: 41,
+    casosParaRevisar: lectura.revisar,
+  });
+
+  it("las latas se cuentan en unidades y no entran en los kilos", () => {
+    assert.equal(seVendePorUnidad("Lata Paté de Alcaparras"), true);
+    assert.equal(seVendePorUnidad("FTC IVP 200/300"), false);
+    assert.equal(semana41.indicadores.unidades.b, 30);
+    assert.equal(entero(semana41.indicadores.kg.b), 7_683);
+  });
+
+  it("el precio por kilo usa solo la venta de productos por peso", () => {
+    const porPeso = lectura.lineas
+      .filter((linea) => linea.semana === 41 && !linea.porUnidad)
+      .reduce((total, linea) => total + linea.total, 0);
+    assert.equal(entero(semana41.indicadores.precioPromedioKg.b), entero(porPeso / 7_683));
+  });
+
+  it("37 contra 38 no tiene latas: los kilos de control no cambian", () => {
+    assert.equal(reporte.indicadores.unidades.a, 0);
+    assert.equal(reporte.indicadores.unidades.b, 0);
+    assert.equal(entero(reporte.indicadores.kg.a), 1_441);
+  });
+
+  it("cada semana trae su año y sus fechas de lunes a domingo", () => {
+    assert.deepEqual(reporte.semanas.detalleB, { semana: 38, anio: 2026, desde: "2026-09-14", hasta: "2026-09-20" });
+    assert.deepEqual(reporte.semanas.detalleA, { semana: 37, anio: 2026, desde: "2026-09-07", hasta: "2026-09-13" });
+    assert.deepEqual(infoDeSemana(2026, 1), { semana: 1, anio: 2026, desde: "2025-12-29", hasta: "2026-01-04" });
+  });
+
+  it("lee la fecha del pedido como número de serie o como DD/MM/AAAA", () => {
+    assert.equal(fechaDeCelda(46024)?.toDateString(), new Date(2026, 0, 2).toDateString());
+    assert.equal(fechaDeCelda("02/01/2026")?.toDateString(), new Date(2026, 0, 2).toDateString());
+    assert.equal(fechaDeCelda(""), null);
+  });
+
+  it("un despacho de enero con pedidos de diciembre se ubica en el año siguiente", () => {
+    assert.equal(anioDeSemana(1, [new Date(2026, 11, 22)], 2026), 2027);
+    assert.equal(anioDeSemana(52, [new Date(2026, 11, 22)], 2026), 2026);
+  });
+
+  it("señala renglones repetidos e importes sin cantidad, sin cambiar los totales", () => {
+    const repetidos = lectura.revisar.filter((caso) => caso.motivo.startsWith("Renglón idéntico"));
+    assert.deepEqual(repetidos.map((caso) => caso.nroPedido).sort(), ["01-030", "01-184"]);
+    assert.ok(lectura.revisar.some((caso) => caso.motivo.startsWith("Tiene importe pero no tiene cantidad")));
+    assert.deepEqual(semana41.casosParaRevisar.map((caso) => caso.fila), [611]);
+    assert.ok(semana41.avisos.some((aviso) => aviso.includes("para revisar")));
+    // El total de la semana 37 sigue siendo el de control: no se descarta nada por suposición.
+    assert.equal(entero(reporte.indicadores.totalFacturado.a), 28_650_861);
+  });
+
+  it("muestra los clientes que más explican el cambio, ordenados por diferencia", () => {
+    const [primero, segundo] = reporte.clientes.queExplicanElCambio;
+    assert.equal(normalizarTexto(primero.cliente), normalizarTexto("Drigne SRL"));
+    assert.deepEqual([entero(primero.a), entero(primero.b), entero(primero.diferencia)], [7_600_000, 0, -7_600_000]);
+    assert.equal(normalizarTexto(segundo.cliente), normalizarTexto("Artesanos del Mar"));
+    assert.equal(entero(segundo.diferencia), 5_285_000);
+    assert.ok(reporte.clientes.queExplicanElCambio.length <= 6);
   });
 });

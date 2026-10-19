@@ -14,3 +14,6 @@ export {
 } from "./formato.ts";
 export { lecturasDelReporte } from "./lecturas.ts";
 export type { Lecturas } from "./lecturas.ts";
+export { seVendePorUnidad } from "./leer-pedidos.ts";
+export { anioDeSemana, fechaDeCelda, infoDeSemana } from "./semanas.ts";
+export { VENTA_POR_UNIDAD } from "./categorias.config.ts";

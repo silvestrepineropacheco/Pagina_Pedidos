@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/feedback";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { categoryLabel } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { proximaAccion, quienActua } from "@/lib/proxima-accion";
 import type { RequestRow } from "@/lib/types";
 
 interface RequestListProps {
@@ -13,6 +14,19 @@ interface RequestListProps {
   emptyTitle?: string;
   emptyDescription?: string;
 }
+
+/** Qué falta y quién lo tiene que hacer. */
+const NextAction = ({ request, personName }: { request: RequestRow; personName: (id?: string | null) => string | null }) => {
+  const accion = proximaAccion(request.status);
+  const quien = quienActua(request, personName);
+  if (accion.terminado) return <span className="text-xs text-muted-foreground">{accion.texto}</span>;
+  return (
+    <span className="text-sm">
+      <span className="font-medium text-foreground">{accion.texto}</span>
+      {quien ? <span className="block text-xs text-muted-foreground">{quien}</span> : null}
+    </span>
+  );
+};
 
 const Responsible = ({ name }: { name: string | null }) =>
   name ? (
@@ -44,6 +58,7 @@ export const RequestList = ({
               <TableHead>Prioridad</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Asignado a</TableHead>
+              <TableHead>Próxima acción</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -64,6 +79,9 @@ export const RequestList = ({
                 </TableCell>
                 <TableCell>
                   <Responsible name={personName(request.assigned_admin_id)} />
+                </TableCell>
+                <TableCell>
+                  <NextAction request={request} personName={personName} />
                 </TableCell>
                 <TableCell>
                   <Link
@@ -101,6 +119,15 @@ export const RequestList = ({
               <PriorityBadge priority={request.priority} />
               <span className="text-xs text-muted-foreground">{categoryLabel(request.category)}</span>
             </div>
+            {!proximaAccion(request.status).terminado ? (
+              <div className="mt-2 rounded-md bg-muted/60 px-2 py-1 text-xs">
+                <span className="text-muted-foreground">Próxima acción: </span>
+                <span className="font-medium text-foreground">{proximaAccion(request.status).texto}</span>
+                {quienActua(request, personName) ? (
+                  <span className="text-muted-foreground"> · {quienActua(request, personName)}</span>
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-2 text-xs text-muted-foreground">
               Asignado a:{" "}
               <span className="font-medium text-foreground">

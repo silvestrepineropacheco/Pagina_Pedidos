@@ -14,8 +14,28 @@ export interface LineaPedido {
   producto: string;
   origen: string;
   estado: string;
+  /** Fecha del pedido (columna "Fecha pedido"), si se pudo leer. */
+  fecha: Date | null;
   total: number;
+  /** Valor unitario sin IVA, tal como está en la planilla. */
+  valorUnitario: number;
+  /** Lo que dice la columna "Cantidad kg", sin interpretar. */
+  cantidad: number;
+  /** Productos vendidos por unidad (latas): su cantidad no son kilos. */
+  porUnidad: boolean;
+  /** Kilos: la cantidad de los productos que se venden por peso. */
   kg: number;
+  /** Unidades: la cantidad de los productos que se venden por unidad. */
+  unidades: number;
+}
+
+/** Un renglón que conviene revisar en la planilla antes de confiar en el número. */
+export interface CasoParaRevisar {
+  fila: number;
+  nroPedido: string;
+  semana: number | null;
+  producto: string;
+  motivo: string;
 }
 
 export interface LecturaPedidos {
@@ -24,6 +44,18 @@ export interface LecturaPedidos {
     sinNroPedido: number;
     canceladas: number;
   };
+  /** Renglones con datos dudosos. Se cuentan igual: no se corrige nada por suposición. */
+  revisar: CasoParaRevisar[];
+}
+
+/** Número de semana con su año y sus fechas (lunes a domingo). */
+export interface SemanaInfo {
+  semana: number;
+  anio: number;
+  /** Lunes, en formato AAAA-MM-DD. */
+  desde: string;
+  /** Domingo, en formato AAAA-MM-DD. */
+  hasta: string;
 }
 
 export interface OpcionesReporte {
@@ -35,6 +67,8 @@ export interface OpcionesReporte {
   hoy?: Date;
   /** Un pedido es excepcional si supera este % del total de su semana. */
   umbralExcepcionalPct?: number;
+  /** Renglones dudosos detectados al leer la planilla (`LecturaPedidos.revisar`). */
+  casosParaRevisar?: CasoParaRevisar[];
 }
 
 export interface Comparacion {
@@ -59,16 +93,22 @@ export interface ClienteEnSemana {
 }
 
 export interface ReporteSemanal {
-  semanas: { a: number; b: number };
+  semanas: { a: number; b: number; detalleA: SemanaInfo; detalleB: SemanaInfo };
   avisos: string[];
   indicadores: {
     totalFacturado: Comparacion;
+    /** Solo productos vendidos por peso. */
     kg: Comparacion;
+    /** Productos vendidos por unidad (latas). */
+    unidades: Comparacion;
     pedidos: Comparacion;
     clientes: Comparacion;
     ticketPromedio: Comparacion;
+    /** Venta de productos por peso dividida por sus kilos (sin latas). */
     precioPromedioKg: Comparacion;
   };
+  /** Renglones de las semanas A y B que conviene revisar en la planilla. */
+  casosParaRevisar: CasoParaRevisar[];
   contexto: {
     ultimasSemanas: { semana: number; total: number }[];
     semanasDelPromedio: number[];
@@ -99,6 +139,8 @@ export interface ReporteSemanal {
     recurrentes: (Comparacion & { cliente: string })[];
     soloEnB: ClienteEnSemana[];
     soloEnA: ClienteEnSemana[];
+    /** Los clientes que más explican la diferencia de venta entre las dos semanas. */
+    queExplicanElCambio: { cliente: string; a: number; b: number; diferencia: number }[];
     primeraCompraDelAnio: { a: string[]; b: string[] };
   };
 }

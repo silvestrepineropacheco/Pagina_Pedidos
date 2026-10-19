@@ -1,4 +1,4 @@
-export type AppRole = "owner" | "admin" | "encargado" | "pending";
+export type AppRole = "owner" | "admin" | "encargado" | "finanzas" | "pending";
 
 export type RequestCategory = "insumos" | "indumentaria" | "maquinaria";
 

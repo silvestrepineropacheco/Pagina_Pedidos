@@ -29,3 +29,12 @@ export const REGLAS_CATEGORIA: ReglaCategoria[] = [
   { categoria: "Filet Trim C", contiene: ["FTC", "Trim C", "IWP PBO"] },
   { categoria: "Filet fresco PBI/PBO", contiene: ["PBI", "PBO"] },
 ];
+
+/**
+ * Productos que se venden por unidad y no por peso: su "Cantidad kg" son
+ * unidades. Se cuentan aparte y no entran en los kilos ni en el precio por kilo.
+ * Mismas reglas que arriba: sin distinguir mayúsculas.
+ */
+export const VENTA_POR_UNIDAD: Omit<ReglaCategoria, "categoria"> = {
+  empiezaCon: ["Lata"],
+};

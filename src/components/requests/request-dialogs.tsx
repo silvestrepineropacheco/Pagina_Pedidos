@@ -825,7 +825,7 @@ export const ReviewItemDialog = ({
               : "Información solicitada",
         description:
           mode === "info"
-            ? "El encargado recibió la consulta."
+            ? "El gerente recibió la consulta."
             : mode === "approve"
               ? `Cantidad aprobada: ${formatQty(Number(approvedQty))}. La revisión de este artículo ya quedó registrada: pasa a “Compras pendientes”.`
               : "La revisión de este artículo ya quedó registrada.",
@@ -884,7 +884,7 @@ export const ReviewItemDialog = ({
               placeholder={
                 mode === "approve"
                   ? "Ej.: se aprueba con cantidad ajustada"
-                  : "Explicá el motivo para que el encargado lo entienda"
+                  : "Explicá el motivo para que el gerente lo entienda"
               }
             />
           </div>
@@ -892,7 +892,7 @@ export const ReviewItemDialog = ({
           {mode === "info" ? (
             <div className="flex items-start gap-2 rounded-md bg-info-soft p-3 text-xs text-info-soft-foreground">
               <FileWarning className="mt-0.5 h-4 w-4 shrink-0" />
-              El encargado recibirá una notificación dentro de la aplicación.
+              El gerente recibirá una notificación dentro de la aplicación.
             </div>
           ) : null}
         </div>
@@ -1152,7 +1152,7 @@ export const RequestInfoDialog = ({
       }
       await refreshRequestAfterReview(requestId);
       await invalidate(queryClient, requestId);
-      toast({ title: "Consulta enviada", description: "El encargado recibió una notificación." });
+      toast({ title: "Consulta enviada", description: "El gerente recibió una notificación." });
       onOpenChange(false);
     } catch (error) {
       showError(error);

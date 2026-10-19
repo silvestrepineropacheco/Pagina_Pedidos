@@ -366,7 +366,7 @@ const RequestFormPage = () => {
           <CardContent className="space-y-1 p-4 text-sm text-warning-soft-foreground">
             <p className="font-medium">Tu cuenta todavía no está habilitada para cargar pedidos</p>
             <p>
-              Pedile al Propietario que autorice tu cuenta y te asigne un rol (Encargado). Cuando lo
+              Pedile al Propietario que autorice tu cuenta y te asigne un rol (Gerente). Cuando lo
               haga, recargá la página. No hace falta que completes el formulario antes.
             </p>
           </CardContent>

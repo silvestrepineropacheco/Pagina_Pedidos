@@ -6,13 +6,15 @@ import type { AppRole } from "./types";
  * por lo que ocultar un boton nunca es la unica proteccion.
  */
 export const can = {
-  hasAccess: (role?: AppRole | null) => role === "owner" || role === "admin" || role === "encargado",
+  hasAccess: (role?: AppRole | null) =>
+    role === "owner" || role === "admin" || role === "encargado" || role === "finanzas",
   isAdmin: (role?: AppRole | null) => role === "owner" || role === "admin",
   isOwner: (role?: AppRole | null) => role === "owner",
   createRequest: (role?: AppRole | null) => role === "encargado" || role === "admin" || role === "owner",
   reviewRequests: (role?: AppRole | null) => role === "owner" || role === "admin",
   reviewChanges: (role?: AppRole | null) => role === "owner" || role === "admin",
-  registerPurchase: (role?: AppRole | null) => role === "owner" || role === "admin",
+  /** Finanzas registra compras; administradores y Propietario también pueden. */
+  registerPurchase: (role?: AppRole | null) => role === "owner" || role === "admin" || role === "finanzas",
   registerReceipt: () => true,
   manageCatalog: (role?: AppRole | null) => role === "owner" || role === "admin",
   manageUsers: (role?: AppRole | null) => role === "owner",
@@ -26,7 +28,9 @@ export const roleLabel = (role?: AppRole | null) => {
     case "admin":
       return "Administrador";
     case "encargado":
-      return "Encargado";
+      return "Gerente";
+    case "finanzas":
+      return "Finanzas";
     default:
       return "Pendiente de autorización";
   }

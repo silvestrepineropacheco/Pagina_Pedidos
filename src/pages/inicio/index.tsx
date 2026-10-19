@@ -60,7 +60,7 @@ const HomePage = () => {
       <div className="rounded-lg bg-primary p-5 text-primary-foreground shadow-card">
         <p className="text-sm text-primary-foreground/80">Pedidos y compras</p>
         <h1 className="mt-1 text-2xl font-semibold leading-tight">
-          {profile?.full_name ?? "Encargado"}
+          {profile?.full_name ?? "Gerente"}
         </h1>
         <p className="mt-1 text-sm text-primary-foreground/80">
           Cargá tus solicitudes y seguí el estado de cada pedido.

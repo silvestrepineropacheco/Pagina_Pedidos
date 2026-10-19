@@ -25,14 +25,14 @@ import type { RequestRow, RequestStatus } from "@/lib/types";
 const ALL = "todos";
 
 const TABS: { value: string; label: string; statuses: RequestStatus[] | null }[] = [
-  { value: "revision", label: "Pendientes de revisión", statuses: ["pending_review", "needs_info", "evaluating"] },
+  { value: "revision", label: "Pendientes de autorización", statuses: ["pending_review", "needs_info", "evaluating"] },
   { value: "compra", label: "Pendientes de compra", statuses: ["approved_pending_purchase", "purchasing"] },
   {
     value: "recepcion",
-    label: "Compras realizadas / esperando recepción",
+    label: "Pendientes de recepción",
     statuses: ["purchased_pending_receipt", "partially_received"],
   },
-  { value: "recibidos", label: "Recibidos", statuses: ["completed"] },
+  { value: "recibidos", label: "Recibidos / finalizados", statuses: ["completed"] },
   { value: "rechazados", label: "Rechazados o cancelados", statuses: ["rejected", "cancelled"] },
   { value: "todos", label: "Todos los pedidos", statuses: null },
 ];

@@ -72,7 +72,7 @@ const PendingPage = () => {
           <div className="flex items-start gap-2 rounded-md bg-info-soft p-3 text-xs text-info-soft-foreground">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              Ninguna cuenta se autoriza sola. El rol de Administrador o Encargado lo asigna el
+              Ninguna cuenta se autoriza sola. El rol de Administrador, Gerente o Finanzas lo asigna el
               Propietario desde la gestión de usuarios.
             </span>
           </div>

@@ -106,7 +106,7 @@ const ResumenVentas = () => {
     );
   }
 
-  const reporte = calcularReporteSemanal(data.lineas, { semanaA: semanas.a, semanaB: semanas.b });
+  const reporte = calcularReporteSemanal(data.lineas, { semanaA: semanas.a, semanaB: semanas.b, casosParaRevisar: data.revisar });
   const total = reporte.indicadores.totalFacturado;
   const Icono = total.variacionPct === null || total.variacionPct === 0 ? Minus : total.variacionPct > 0 ? ArrowUpRight : ArrowDownRight;
   const tono =

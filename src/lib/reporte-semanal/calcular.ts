@@ -1,6 +1,6 @@
 import { CATEGORIA_RESTO, REGLAS_CATEGORIA } from "./categorias.config.ts";
 import type { ReglaCategoria } from "./categorias.config.ts";
-import { semanasPorDefecto } from "./semanas.ts";
+import { anioDeSemana, infoDeSemana, semanasPorDefecto } from "./semanas.ts";
 import type {
   ClienteEnSemana,
   Comparacion,
@@ -14,6 +14,8 @@ export const UMBRAL_EXCEPCIONAL_PCT = 40;
 const SEMANAS_DE_CONTEXTO = 10;
 const SEMANAS_DEL_PROMEDIO = 6;
 const TOP_CLIENTES = 5;
+/** Cuántos clientes se muestran en "los que más explican el cambio". */
+const CLIENTES_QUE_EXPLICAN = 6;
 
 const redondear = (valor: number, decimales = 2): number => {
   const factor = 10 ** decimales;
@@ -146,8 +148,30 @@ export const calcularReporteSemanal = (
   }
 
   // 1. Indicadores
+  // Kilos y precio por kilo solo con productos vendidos por peso: las latas van aparte.
   const kgA = sumar(lineasA, (linea) => linea.kg);
   const kgB = sumar(lineasB, (linea) => linea.kg);
+  const unidadesA = sumar(lineasA, (linea) => linea.unidades);
+  const unidadesB = sumar(lineasB, (linea) => linea.unidades);
+  const totalPorPesoA = sumar(lineasA, (linea) => (linea.porUnidad ? 0 : linea.total));
+  const totalPorPesoB = sumar(lineasB, (linea) => (linea.porUnidad ? 0 : linea.total));
+
+  // Año y fechas de cada semana, a partir de las fechas de pedido.
+  const anioPorDefecto = (opciones.hoy ?? new Date()).getFullYear();
+  const fechasDe = (semana: number) =>
+    lineasDe(semana).map((linea) => linea.fecha).filter((fecha): fecha is Date => fecha !== null);
+  const detalleA = infoDeSemana(anioDeSemana(semanaA, fechasDe(semanaA), anioPorDefecto), semanaA);
+  const detalleB = infoDeSemana(anioDeSemana(semanaB, fechasDe(semanaB), anioPorDefecto), semanaB);
+
+  // Casos dudosos de las dos semanas comparadas.
+  const casosParaRevisar = (opciones.casosParaRevisar ?? []).filter(
+    (caso) => caso.semana === semanaA || caso.semana === semanaB,
+  );
+  if (casosParaRevisar.length > 0) {
+    avisos.push(
+      `Hay ${casosParaRevisar.length} renglones de estas semanas con datos para revisar en la planilla (detalle al final del reporte). Se cuentan tal como están.`,
+    );
+  }
   const pedidosA = new Set(lineasA.map((linea) => linea.nroPedido)).size;
   const pedidosB = new Set(lineasB.map((linea) => linea.nroPedido)).size;
   const clientesA = totalesPorCliente(lineasA);
@@ -245,16 +269,18 @@ export const calcularReporteSemanal = (
     fichas.filter((ficha) => ficha.primeraCompraDelAnio).map((ficha) => ficha.cliente);
 
   return {
-    semanas: { a: semanaA, b: semanaB },
+    semanas: { a: semanaA, b: semanaB, detalleA, detalleB },
     avisos,
     indicadores: {
       totalFacturado: comparar(totalA, totalB),
       kg: comparar(kgA, kgB),
+      unidades: comparar(unidadesA, unidadesB),
       pedidos: comparar(pedidosA, pedidosB),
       clientes: comparar(clientesA.size, clientesB.size),
       ticketPromedio: comparar(dividir(totalA, pedidosA), dividir(totalB, pedidosB)),
-      precioPromedioKg: comparar(dividir(totalA, kgA), dividir(totalB, kgB)),
+      precioPromedioKg: comparar(dividir(totalPorPesoA, kgA), dividir(totalPorPesoB, kgB)),
     },
+    casosParaRevisar,
     contexto: {
       ultimasSemanas,
       semanasDelPromedio,
@@ -293,6 +319,15 @@ export const calcularReporteSemanal = (
         .sort((uno, otro) => otro.b - uno.b),
       soloEnB: clavesSoloB.map(fichaCliente(clientesB, semanaB)).sort(porTotal),
       soloEnA: clavesSoloA.map(fichaCliente(clientesA, semanaA)).sort(porTotal),
+      queExplicanElCambio: [...new Set([...clientesA.keys(), ...clientesB.keys()])]
+        .map((clave) => {
+          const ventaA = clientesA.get(clave)?.total ?? 0;
+          const ventaB = clientesB.get(clave)?.total ?? 0;
+          return { cliente: nombre(clave), a: redondear(ventaA), b: redondear(ventaB), diferencia: redondear(ventaB - ventaA) };
+        })
+        .filter((fila) => fila.diferencia !== 0)
+        .sort((uno, otro) => Math.abs(otro.diferencia) - Math.abs(uno.diferencia))
+        .slice(0, CLIENTES_QUE_EXPLICAN),
       primeraCompraDelAnio: { a: soloNombres(fichasA), b: soloNombres(fichasB) },
     },
   };

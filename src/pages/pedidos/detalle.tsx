@@ -58,6 +58,7 @@ import { usePeopleMaps } from "@/hooks/use-reference-data";
 import { useRequestBundle } from "@/hooks/use-requests";
 import {
   addComment,
+  confirmReceipt,
   reassignRequest,
   fetchIntegrationLog,
   createDraftRequest,
@@ -72,10 +73,13 @@ import { eventFromStatus, syncInBackground, syncOrderToGoogle } from "@/lib/inte
 import { createIdempotencyKey } from "@/lib/idempotency";
 import { readSavedSizes } from "@/lib/sizes";
 import { can } from "@/lib/permissions";
+import { proximaAccion, quienActua } from "@/lib/proxima-accion";
 import type { RequestItemRow } from "@/lib/types";
 
 // En estos estados el pedido ya terminó: no se reasigna.
 const CLOSED_STATUSES = ["completed", "rejected", "cancelled"];
+// Antes de estos estados todavía no hay nada autorizado para comprar.
+const PRE_PURCHASE_STATUSES = ["draft", "pending_review", "evaluating", "needs_info", "rejected", "cancelled"];
 
 const RequestDetailPage = () => {
   const { id } = useParams();
@@ -138,8 +142,31 @@ const RequestDetailPage = () => {
       0,
     );
     const pendingTotal = Object.values(pendingById).reduce((total, value) => total + value, 0);
+    // Lo que se puede recibir es lo comprado que todavía no llegó; lo que falta
+    // comprar sigue pendiente de compra (así no se pierde ningún saldo).
+    const receivableById: Record<string, number> = {};
+    let toBuyTotal = 0;
+    for (const item of itemList) {
+      if (item.item_status === "rejected" || item.item_status === "cancelled") continue;
+      const approved = Number(item.approved_qty);
+      const purchased = purchasedById[item.id] ?? 0;
+      receivableById[item.id] = Math.max(Math.min(approved, purchased) - (acceptedById[item.id] ?? 0), 0);
+      toBuyTotal += Math.max(approved - purchased, 0);
+    }
+    const receivableTotal = Object.values(receivableById).reduce((total, value) => total + value, 0);
     const acceptedTotal = Object.values(acceptedById).reduce((total, value) => total + value, 0);
-    return { purchasedById, acceptedById, incidentById, pendingById, approvedTotal, pendingTotal, acceptedTotal };
+    return {
+      purchasedById,
+      acceptedById,
+      incidentById,
+      pendingById,
+      receivableById,
+      approvedTotal,
+      pendingTotal,
+      acceptedTotal,
+      receivableTotal,
+      toBuyTotal,
+    };
   }, [bundle]);
 
   const pendingChange = (bundle?.changes ?? []).find((change) => change.status === "pending");
@@ -211,6 +238,34 @@ const RequestDetailPage = () => {
       toast({
         title: "No se pudo reasignar",
         description: friendlyError(reassignError, "No pudimos reasignar el pedido. Intentá nuevamente."),
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // "Llegó completo": un clic. Recibe todo lo comprado que faltaba recibir.
+  const handleArrivedComplete = async () => {
+    if (!id || busy) return;
+    setBusy(true);
+    try {
+      await confirmReceipt({
+        requestId: id,
+        mode: "complete",
+        receivedAt: null,
+        idempotencyKey: createIdempotencyKey(),
+      });
+      await refresh();
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast({
+        title: "Recepción confirmada",
+        description: "Quedó registrado quién la confirmó y cuándo. Si falta comprar algo, sigue pendiente de compra.",
+      });
+    } catch (receiptError) {
+      toast({
+        title: "No se pudo confirmar la recepción",
+        description: friendlyError(receiptError, "Intentá nuevamente o registrá la recepción con detalle."),
         variant: "destructive",
       });
     } finally {
@@ -381,7 +436,7 @@ const RequestDetailPage = () => {
     <div className="space-y-4 pb-6">
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
-          <Link to={isAdmin ? "/admin/pedidos" : "/pedidos"}>
+          <Link to={can.registerPurchase(role) ? "/admin/pedidos" : "/pedidos"}>
             <ArrowLeft className="h-4 w-4" />
             Volver
           </Link>
@@ -427,6 +482,28 @@ const RequestDetailPage = () => {
               <p>{daysSince(request.submitted_at) ?? "—"}</p>
             </div>
           </div>
+
+          {request.submitted_at ? (
+            <div
+              className={`flex flex-wrap items-center justify-between gap-2 rounded-md p-3 text-sm ${
+                proximaAccion(request.status).terminado ? "bg-muted" : "bg-info-soft text-info-soft-foreground"
+              }`}
+            >
+              <span>
+                {proximaAccion(request.status).terminado ? "Estado final: " : "Próxima acción: "}
+                <strong>{proximaAccion(request.status).texto}</strong>
+                {quienActua(request, personName) ? (
+                  <>
+                    {" "}
+                    · a cargo de <strong>{quienActua(request, personName)}</strong>
+                  </>
+                ) : null}
+              </span>
+              {aggregates.toBuyTotal > 0 && aggregates.receivableTotal > 0 ? (
+                <span className="text-xs">Hay artículos para recibir y otros que todavía falta comprar.</span>
+              ) : null}
+            </div>
+          ) : null}
 
           {request.priority === "urgente" && request.urgency_reason ? (
             <div className="rounded-md bg-destructive-soft p-3 text-sm text-destructive-soft-foreground">
@@ -502,14 +579,14 @@ const RequestDetailPage = () => {
               </Button>
             ) : null}
 
-            {request.submitted_at && aggregates.pendingTotal > 0 ? (
+            {request.submitted_at && aggregates.receivableTotal > 0 ? (
               <>
-                <Button size="sm" onClick={() => setConfirmOpen(true)}>
+                <Button size="sm" onClick={() => void handleArrivedComplete()} disabled={busy}>
                   <PackageCheck className="h-4 w-4" />
-                  Confirmar recepción
+                  Llegó completo
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDetailedOpen(true)}>
-                  Registrar con detalle
+                <Button size="sm" variant="outline" onClick={() => setDetailedOpen(true)} disabled={busy}>
+                  Llegó incompleto o con problemas
                 </Button>
               </>
             ) : null}
@@ -522,18 +599,20 @@ const RequestDetailPage = () => {
             ) : null}
 
             {isAdmin && request.status !== "draft" ? (
-              <>
-                <Button size="sm" variant="outline" onClick={() => setInfoOpen(true)}>
-                  <MessageSquarePlus className="h-4 w-4" />
-                  Pedir información
-                </Button>
-                <Button size="sm" asChild>
-                  <Link to={`/admin/compras/nueva?pedido=${request.id}`}>
-                    <ShoppingCart className="h-4 w-4" />
-                    Registrar compra
-                  </Link>
-                </Button>
-              </>
+              <Button size="sm" variant="outline" onClick={() => setInfoOpen(true)}>
+                <MessageSquarePlus className="h-4 w-4" />
+                Pedir información
+              </Button>
+            ) : null}
+
+            {can.registerPurchase(role) && aggregates.toBuyTotal > 0 && !request.closed_at &&
+            !PRE_PURCHASE_STATUSES.includes(request.status) ? (
+              <Button size="sm" asChild>
+                <Link to={`/admin/compras/nueva?pedido=${request.id}`}>
+                  <ShoppingCart className="h-4 w-4" />
+                  Registrar compra
+                </Link>
+              </Button>
             ) : null}
           </div>
         </CardContent>
@@ -545,9 +624,20 @@ const RequestDetailPage = () => {
             La compra ya está registrada. Cuando llegue la mercadería, confirmá la recepción: no hace
             falta volver a cargar proveedor, precios, enlaces ni artículos.
           </span>
-          <Button size="sm" variant="outline" onClick={() => setConfirmOpen(true)}>
-            Confirmar recepción
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void handleArrivedComplete()} disabled={busy}>
+              Llegó completo
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-card"
+              onClick={() => setDetailedOpen(true)}
+              disabled={busy}
+            >
+              Llegó incompleto o con problemas
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -833,8 +923,11 @@ const RequestDetailPage = () => {
                   <div>
                     <p className="font-medium">{receipt.folio}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(receipt.received_at)} ·{" "}
-                      {receipt.received_by_name ?? personName(receipt.created_by) ?? "—"}
+                      Llegó el {formatDate(receipt.received_at)} · Confirmó{" "}
+                      <span className="font-medium text-foreground">
+                        {receipt.received_by_name ?? personName(receipt.created_by) ?? "—"}
+                      </span>{" "}
+                      el {formatDateTime(receipt.created_at)}
                     </p>
                   </div>
                   {receipt.photo_path ? (
@@ -1041,7 +1134,7 @@ const RequestDetailPage = () => {
         onOpenChange={setConfirmOpen}
         requestId={request.id}
         items={items}
-        pendingById={aggregates.pendingById}
+        pendingById={aggregates.receivableById}
         onDetailed={() => setDetailedOpen(true)}
       />
 
@@ -1050,7 +1143,7 @@ const RequestDetailPage = () => {
         onOpenChange={setDetailedOpen}
         requestId={request.id}
         items={items}
-        pendingById={aggregates.pendingById}
+        pendingById={aggregates.receivableById}
       />
 
       <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>

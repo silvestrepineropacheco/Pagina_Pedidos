@@ -61,7 +61,7 @@ const ChangeReviewPage = () => {
           title={showActions ? "No hay cambios pendientes" : "Sin cambios resueltos"}
           description={
             showActions
-              ? "Las propuestas que hagan los encargados sobre artículos aprobados o comprados aparecen acá."
+              ? "Las propuestas que hagan los gerentes sobre artículos aprobados o comprados aparecen acá."
               : undefined
           }
         />
@@ -143,7 +143,7 @@ const ChangeReviewPage = () => {
     <div className="space-y-4">
       <PageHeader
         title="Cambios a revisar"
-        description="Los artículos aprobados o comprados no se modifican solos: el encargado propone y acá se decide."
+        description="Los artículos aprobados o comprados no se modifican solos: el gerente propone y acá se decide."
       />
 
       {error ? (

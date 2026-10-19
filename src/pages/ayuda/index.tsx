@@ -71,7 +71,7 @@ const HelpPage = () => {
         <CardContent className="space-y-3 text-sm">
           <p>
             Centraliza los pedidos de <strong>insumos</strong>, <strong>indumentaria y equipamiento</strong> y{" "}
-            <strong>maquinaria o mejoras</strong>. Cada encargado carga lo que necesita y
+            <strong>maquinaria o mejoras</strong>. Cada gerente carga lo que necesita y
             los administradores revisan, aprueban, compran y registran la recepción.
           </p>
           <p className="text-muted-foreground">
@@ -79,11 +79,11 @@ const HelpPage = () => {
             Acá se organiza la solicitud, quién la gestiona y qué se recibió.
           </p>
           <Separator />
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-md border border-border p-3">
               <p className="flex items-center gap-2 font-medium">
                 <ClipboardList className="h-4 w-4 text-primary" />
-                Encargado
+                Gerente
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Carga pedidos, sigue el estado, responde consultas y confirma lo que
@@ -96,8 +96,18 @@ const HelpPage = () => {
                 Administrador
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Ve todos los pedidos, aprueba artículo por artículo, asigna responsables, registra
-                compras y recepciones.
+                Autoriza o rechaza artículo por artículo, reasigna pedidos con motivo y también puede
+                registrar compras y confirmar recepciones.
+              </p>
+            </div>
+            <div className="rounded-md border border-border p-3">
+              <p className="flex items-center gap-2 font-medium">
+                <ShoppingCart className="h-4 w-4 text-primary" />
+                Finanzas
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Recibe aviso cuando un pedido se autoriza, registra la compra (proveedor, importe y fecha
+                estimada de entrega) y puede confirmar recepciones.
               </p>
             </div>
             <div className="rounded-md border border-border p-3">
@@ -363,7 +373,7 @@ const HelpPage = () => {
                 pedidos, incluso en los borradores.
               </>,
               <>
-                El <strong>enlace sugerido</strong> lo carga el encargado; el{" "}
+                El <strong>enlace sugerido</strong> lo carga el gerente; el{" "}
                 <strong>enlace de la compra</strong> lo carga el administrador cuando efectivamente
                 compra. No se exige ninguna URL para enviar el pedido.
               </>,

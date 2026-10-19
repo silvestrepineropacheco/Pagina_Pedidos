@@ -21,7 +21,7 @@ const jsonResponse = (payload: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-const ROLES = ["admin", "encargado"];
+const ROLES = ["admin", "encargado", "finanzas"];
 
 const generateTemporaryPassword = () => {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";

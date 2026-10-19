@@ -289,7 +289,8 @@ const UsersPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="encargado">Encargado</SelectItem>
+                    <SelectItem value="encargado">Gerente</SelectItem>
+                    <SelectItem value="finanzas">Finanzas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -325,7 +326,8 @@ const UsersPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="encargado">Encargado</SelectItem>
+                    <SelectItem value="encargado">Gerente</SelectItem>
+                    <SelectItem value="finanzas">Finanzas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

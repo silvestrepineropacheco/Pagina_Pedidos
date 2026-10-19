@@ -10,7 +10,7 @@ import {
   formatoVariacion,
   lecturasDelReporte,
 } from "@/lib/reporte-semanal";
-import type { ClienteEnSemana, Comparacion, ReporteSemanal } from "@/lib/reporte-semanal";
+import type { ClienteEnSemana, Comparacion, ReporteSemanal, SemanaInfo } from "@/lib/reporte-semanal";
 import {
   BarrasComparadas,
   BarrasSimples,
@@ -20,6 +20,25 @@ import {
   GraficoSemanas,
   Leyenda,
 } from "./graficos";
+
+/** "07/09 al 13/09/2026" */
+const rangoDeSemana = (info: SemanaInfo) => {
+  const corta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  return `${corta(info.desde)} al ${corta(info.hasta)}/${info.hasta.slice(0, 4)}`;
+};
+
+/** Diferencia en pesos con signo y flecha. */
+const Diferencia = ({ valor }: { valor: number }) => {
+  const Icono = valor > 0 ? ArrowUpRight : valor < 0 ? ArrowDownRight : Minus;
+  const tono = valor > 0 ? "text-success" : valor < 0 ? "text-destructive" : "text-muted-foreground";
+  return (
+    <span className="inline-flex items-center gap-1 font-medium tabular-nums text-foreground">
+      <Icono className={`h-4 w-4 ${tono}`} aria-hidden />
+      {valor > 0 ? "+" : valor < 0 ? "-" : ""}
+      {formatoPesos(Math.abs(valor))}
+    </span>
+  );
+};
 
 /** Subió, bajó o se mantuvo: siempre con ícono y texto, nunca solo con color. */
 const Variacion = ({ valor }: { valor: number | null }) => {
@@ -118,9 +137,10 @@ export const InformeVentas = ({ reporte, generado }: { reporte: ReporteSemanal; 
   const lecturas = lecturasDelReporte(reporte);
   const { indicadores, recurrentesVsOcasionales } = reporte;
   const leyendaSemanas = [
-    { color: COLOR_SEMANA_A, texto: `Semana ${a}` },
-    { color: COLOR_SEMANA_B, texto: `Semana ${b}` },
+    { color: COLOR_SEMANA_A, texto: `Semana ${a} (${rangoDeSemana(reporte.semanas.detalleA)})` },
+    { color: COLOR_SEMANA_B, texto: `Semana ${b} (${rangoDeSemana(reporte.semanas.detalleB)})` },
   ];
+  const hayLatas = indicadores.unidades.a > 0 || indicadores.unidades.b > 0;
   const hayPromedio = reporte.contexto.semanasDelPromedio.length > 0;
   const hayPrimerasCompras =
     reporte.clientes.primeraCompraDelAnio.a.length > 0 || reporte.clientes.primeraCompraDelAnio.b.length > 0;
@@ -132,6 +152,9 @@ export const InformeVentas = ({ reporte, generado }: { reporte: ReporteSemanal; 
         <h2 className="mt-1 text-xl font-semibold leading-tight sm:text-2xl">
           Análisis de Ventas — Semana de despacho {a} vs {b}
         </h2>
+        <p className="mt-1 text-sm text-primary-foreground/90">
+          Semana {a}: {rangoDeSemana(reporte.semanas.detalleA)} · Semana {b}: {rangoDeSemana(reporte.semanas.detalleB)}
+        </p>
         <p className="mt-1 text-sm text-primary-foreground/80">
           Generado el {generado.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}.
           Todos los importes son sin IVA.
@@ -161,7 +184,7 @@ export const InformeVentas = ({ reporte, generado }: { reporte: ReporteSemanal; 
         />
         <Indicador
           nombre="Kilos vendidos"
-          explicacion="La suma de la columna de cantidad. Las latas se anotan por unidad, no por kilo."
+          explicacion="Solo productos que se venden por peso. Las latas se cuentan aparte, en unidades."
           dato={indicadores.kg}
           formato={formatoKg}
           semanaA={a}
@@ -189,11 +212,20 @@ export const InformeVentas = ({ reporte, generado }: { reporte: ReporteSemanal; 
         />
         <Indicador
           nombre="Precio promedio por kilo"
-          explicacion="Venta total dividida por los kilos. Cambia según qué productos se vendieron más."
+          explicacion="Venta de productos por peso dividida por sus kilos (sin latas). Cambia según qué productos se vendieron más."
           dato={indicadores.precioPromedioKg}
           formato={formatoPesos}
           semanaA={a}
         />
+        {hayLatas ? (
+          <Indicador
+            nombre="Latas vendidas"
+            explicacion="Unidades de latas. No se mezclan con los kilos."
+            dato={indicadores.unidades}
+            formato={(valor) => `${formatoEntero(valor)} u.`}
+            semanaA={a}
+          />
+        ) : null}
       </section>
 
       <Seccion
@@ -224,6 +256,37 @@ export const InformeVentas = ({ reporte, generado }: { reporte: ReporteSemanal; 
         />
         <Lectura>{lecturas.contexto}</Lectura>
       </Seccion>
+
+      {reporte.clientes.queExplicanElCambio.length > 0 ? (
+        <Seccion
+          titulo="Quiénes explican la suba o la baja"
+          queMuestra="Los clientes cuya compra más cambió de una semana a la otra, ordenados por el tamaño del cambio."
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead className="text-right">Semana {a}</TableHead>
+                <TableHead className="text-right">Semana {b}</TableHead>
+                <TableHead className="text-right">Diferencia</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reporte.clientes.queExplicanElCambio.map((fila) => (
+                <TableRow key={fila.cliente}>
+                  <TableCell>{fila.cliente}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatoPesos(fila.a)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatoPesos(fila.b)}</TableCell>
+                  <TableCell className="text-right">
+                    <Diferencia valor={fila.diferencia} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Lectura>{lecturas.cambio}</Lectura>
+        </Seccion>
+      ) : null}
 
       <Seccion
         titulo="Clientes de siempre y clientes ocasionales"
@@ -365,7 +428,18 @@ export const InformeVentas = ({ reporte, generado }: { reporte: ReporteSemanal; 
           <li>Los datos salen de la hoja PEDIDOS de la planilla, leída en el momento de generar el reporte.</li>
           <li>Cada pedido se cuenta en su semana de despacho, que va de lunes a domingo.</li>
           <li>No se cuentan los pedidos cancelados, ni por el cliente ni por Manila.</li>
-          <li>Los importes son sin IVA y salen de la columna "TOTAL Pedido".</li>
+          <li>
+            Los importes son sin IVA y salen de la columna "TOTAL Pedido", renglón por renglón: un pedido con varios
+            productos suma cada producto una sola vez y se cuenta como un único pedido.
+          </li>
+          <li>
+            Los kilos y el precio por kilo incluyen solo productos que se venden por peso. Las latas se cuentan aparte,
+            en unidades.
+          </li>
+          <li>
+            Si un renglón tiene datos dudosos (por ejemplo, está repetido o tiene importe sin cantidad), se cuenta tal
+            como está y se marca para revisar en la planilla: el reporte no corrige nada por suposición.
+          </li>
           <li>
             Un pedido se marca como excepcional cuando supera el {formatoPct(reporte.pedidosExcepcionales.umbralPct)} de
             la venta de su semana.

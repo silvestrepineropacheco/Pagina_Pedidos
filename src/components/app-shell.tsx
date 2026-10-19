@@ -49,8 +49,10 @@ interface NavGroup {
 
 type NavEntry = NavItem | NavGroup;
 
-const EVERYONE: AppRole[] = ["encargado", "admin", "owner"];
+const EVERYONE: AppRole[] = ["encargado", "admin", "owner", "finanzas"];
 const ADMINS: AppRole[] = ["admin", "owner"];
+// Quienes trabajan con compras: administradores, Propietario y Finanzas.
+const COMPRAS: AppRole[] = ["admin", "owner", "finanzas"];
 // La parte de ventas es solo para el Propietario.
 const OWNER: AppRole[] = ["owner"];
 
@@ -64,11 +66,11 @@ const NAV_ENTRIES: NavEntry[] = [
       { to: "/nuevo", label: "Nuevo pedido", icon: Plus, roles: ["encargado"] },
       { to: "/pedidos", label: "Pedidos", icon: ClipboardList, roles: ["encargado"] },
       { to: "/admin", label: "Panel de gestión", icon: LayoutDashboard, roles: ADMINS },
-      { to: "/admin/pedidos", label: "Pedidos", icon: ClipboardList, roles: ADMINS },
-      { to: "/admin/recibidos", label: "Pedidos recibidos", icon: PackageCheck, roles: ADMINS },
+      { to: "/admin/pedidos", label: "Pedidos", icon: ClipboardList, roles: COMPRAS },
+      { to: "/admin/recibidos", label: "Recibidos y finalizados", icon: PackageCheck, roles: COMPRAS },
       { to: "/admin/revision-cambios", label: "Cambios a revisar", icon: FileCheck2, roles: ADMINS },
-      { to: "/admin/pendientes-compra", label: "Compras pendientes", icon: ShoppingCart, roles: ADMINS },
-      { to: "/admin/compras", label: "Compras registradas", icon: Package, roles: ADMINS },
+      { to: "/admin/pendientes-compra", label: "Compras pendientes", icon: ShoppingCart, roles: COMPRAS },
+      { to: "/admin/compras", label: "Compras registradas", icon: Package, roles: COMPRAS },
       { to: "/admin/catalogo", label: "Catálogo", icon: Tags, roles: ADMINS },
       { to: "/admin/reportes", label: "Reportes", icon: BarChart3, roles: ADMINS },
     ],

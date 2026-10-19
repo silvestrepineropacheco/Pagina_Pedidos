@@ -123,7 +123,7 @@ export const routers = [
     path: "/admin/pedidos",
     name: "admin-pedidos",
     element: (
-      <AccessRoute requireRole="admin">
+      <AccessRoute requireRole="compras">
         <AdminRequestsPage />
       </AccessRoute>
     ),
@@ -141,7 +141,7 @@ export const routers = [
     path: "/admin/recibidos",
     name: "admin-pedidos-recibidos",
     element: (
-      <AccessRoute requireRole="admin">
+      <AccessRoute requireRole="compras">
         <ReceivedOrdersPage />
       </AccessRoute>
     ),
@@ -150,7 +150,7 @@ export const routers = [
     path: "/admin/pendientes-compra",
     name: "admin-pendientes-compra",
     element: (
-      <AccessRoute requireRole="admin">
+      <AccessRoute requireRole="compras">
         <PurchasePendingPage />
       </AccessRoute>
     ),
@@ -159,7 +159,7 @@ export const routers = [
     path: "/admin/compras",
     name: "admin-compras",
     element: (
-      <AccessRoute requireRole="admin">
+      <AccessRoute requireRole="compras">
         <PurchasesPage />
       </AccessRoute>
     ),
@@ -168,7 +168,7 @@ export const routers = [
     path: "/admin/compras/nueva",
     name: "admin-compra-nueva",
     element: (
-      <AccessRoute requireRole="admin">
+      <AccessRoute requireRole="compras">
         <NewPurchasePage />
       </AccessRoute>
     ),
@@ -177,7 +177,7 @@ export const routers = [
     path: "/admin/compras/:id",
     name: "admin-compra-detalle",
     element: (
-      <AccessRoute requireRole="admin">
+      <AccessRoute requireRole="compras">
         <PurchaseDetailPage />
       </AccessRoute>
     ),
