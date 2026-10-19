@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Eye, EyeOff, KeyRound, Loader2, LogIn, UserPlus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, LogIn, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { ownerSetupPending } from "@/lib/api";
+import { REGISTRO_EN_CURSO } from "@/components/route-guards";
+
+const marcarRegistro = (activo: boolean) => {
+  try {
+    if (activo) sessionStorage.setItem(REGISTRO_EN_CURSO, "1");
+    else sessionStorage.removeItem(REGISTRO_EN_CURSO);
+  } catch {
+    // Sin almacenamiento del navegador la confirmación igual se intenta mostrar.
+  }
+};
 import { APP_VERSION } from "@/lib/constants";
 
 type Mode = "login" | "signup";
@@ -54,6 +64,8 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   // Al crear la cuenta se escribe dos veces, para confirmar que quedó bien.
   const [confirmPassword, setConfirmPassword] = useState("");
+  // Cuenta recién creada: se muestra la confirmación en lugar del formulario.
+  const [created, setCreated] = useState<{ email: string; needsEmailConfirmation: boolean } | null>(null);
   const passwordsDiffer = mode === "signup" && confirmPassword.length > 0 && confirmPassword !== password;
   const [setupCode, setSetupCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -86,6 +98,7 @@ const LoginPage = () => {
         return;
       }
 
+      marcarRegistro(true);
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -98,20 +111,19 @@ const LoginPage = () => {
         },
       });
       if (error) throw new Error(error.message);
-      if (data.session) {
-        toast({
-          title: "Cuenta creada",
-          description: "Estamos preparando tu acceso.",
-        });
-        // Las guardas de ruta deciden el destino cuando el perfil ya cargó.
-        navigate("/", { replace: true });
-      } else {
-        toast({
-          title: "Revisá tu correo",
-          description: "Confirmá tu dirección para completar el registro.",
-        });
+      // Si el correo ya tenía cuenta, Supabase no crea otra ni devuelve error:
+      // lo reconocemos porque la respuesta llega sin identidades.
+      if (data.user && (data.user.identities ?? []).length === 0) {
+        throw new Error("User already registered");
       }
+      // La cuenta nueva queda pendiente: no tiene nada que hacer todavía en la app,
+      // así que se cierra la sesión y se muestra la confirmación.
+      if (data.session) await supabase.auth.signOut();
+      setCreated({ email: email.trim(), needsEmailConfirmation: !data.session });
+      setPassword("");
+      setConfirmPassword("");
     } catch (error) {
+      marcarRegistro(false);
       console.error("[login] error técnico:", error);
       toast({
         title: mode === "login" ? "No se pudo ingresar" : "No se pudo crear la cuenta",
@@ -149,7 +161,7 @@ const LoginPage = () => {
         <Card className="w-full max-w-md shadow-card">
           <CardHeader>
             <CardTitle className="text-xl">
-              {mode === "login" ? "Ingresar" : "Crear cuenta"}
+              {created ? "Listo" : mode === "login" ? "Ingresar" : "Crear cuenta"}
             </CardTitle>
             <CardDescription>
               {mode === "login"
@@ -170,6 +182,43 @@ const LoginPage = () => {
               </div>
             ) : null}
 
+            {created ? (
+              <div className="space-y-4" role="status" aria-live="polite">
+                <div className="flex items-start gap-3 rounded-lg bg-success-soft p-4 text-success-soft-foreground">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div className="space-y-1">
+                    <p className="font-semibold">Cuenta creada</p>
+                    <p className="text-sm">
+                      La cuenta de <strong>{created.email}</strong> quedó registrada.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
+                  <p className="font-medium text-foreground">Falta la autorización del Propietario</p>
+                  <p className="text-muted-foreground">
+                    Todavía no podés usar la aplicación: el Propietario tiene que autorizar tu cuenta y asignarte
+                    un rol. Avisale que ya te registraste.
+                  </p>
+                  {created.needsEmailConfirmation ? (
+                    <p className="text-muted-foreground">
+                      Además, confirmá tu correo con el enlace que te llegó a <strong>{created.email}</strong>.
+                    </p>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    marcarRegistro(false);
+                    setCreated(null);
+                    setMode("login");
+                  }}
+                >
+                  Volver a Ingresar
+                </Button>
+              </div>
+            ) : (
             <form className="space-y-4" onSubmit={handleSubmit}>
               {mode === "signup" ? (
                 <div className="space-y-1.5">
@@ -278,16 +327,19 @@ const LoginPage = () => {
                 {mode === "login" ? "Ingresar" : "Crear cuenta"}
               </Button>
             </form>
+            )}
 
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            >
-              <KeyRound className="h-4 w-4" />
-              {mode === "login" ? "¿No tenés cuenta? Registrate" : "Ya tengo cuenta"}
-            </Button>
+            {created ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => setMode(mode === "login" ? "signup" : "login")}
+              >
+                <KeyRound className="h-4 w-4" />
+                {mode === "login" ? "¿No tenés cuenta? Registrate" : "Ya tengo cuenta"}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -36,8 +36,21 @@ export const AccessRoute = ({
   return <AppShell>{children}</AppShell>;
 };
 
+/** Mientras alguien se registra, la pantalla de ingreso no redirige: así ve la confirmación. */
+export const REGISTRO_EN_CURSO = "manila:registro-en-curso";
+
+const registroEnCurso = () => {
+  try {
+    return sessionStorage.getItem(REGISTRO_EN_CURSO) === "1";
+  } catch {
+    return false;
+  }
+};
+
 export const PublicOnlyRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, ready } = useAuth();
+
+  if (registroEnCurso()) return <>{children}</>;
 
   if (!ready) return <FullPageLoading />;
   if (!user) return <>{children}</>;
