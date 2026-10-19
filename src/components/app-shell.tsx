@@ -187,6 +187,12 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex min-h-screen w-full bg-background">
+      <a
+        href="#contenido"
+        className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Saltar al contenido
+      </a>
       <aside className="hidden w-72 shrink-0 flex-col justify-between bg-sidebar p-4 lg:flex print:!hidden">
         <div className="space-y-6">
           <div className="px-2 pt-2">
@@ -264,7 +270,9 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
           </NavLink>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-4 sm:py-6">{children}</main>
+        <main id="contenido" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-4 outline-none sm:pt-6">
+          {children}
+        </main>
       </div>
     </div>
   );
@@ -281,8 +289,10 @@ export const PageHeader = ({
 }) => (
   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div className="min-w-0">
-      <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
-      {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem] sm:leading-tight">
+        {title}
+      </h1>
+      {description ? <p className="mt-1.5 max-w-prose text-sm text-muted-foreground">{description}</p> : null}
     </div>
     {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
   </div>

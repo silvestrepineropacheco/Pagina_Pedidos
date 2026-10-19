@@ -1,12 +1,28 @@
-import { AlertTriangle, Inbox, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+/**
+ * Mientras cargan los datos se muestra la forma de lo que va a aparecer
+ * (renglones grises), en lugar de un círculo girando.
+ */
 export const LoadingState = ({ label = "Cargando..." }: { label?: string }) => (
-  <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
-    <Loader2 className="h-5 w-5 animate-spin" />
-    <span className="text-sm">{label}</span>
+  <div role="status" aria-live="polite" className="space-y-3 py-4">
+    <span className="sr-only">{label}</span>
+    <p className="text-sm text-muted-foreground" aria-hidden>
+      {label}
+    </p>
+    {[0, 1, 2].map((fila) => (
+      <div key={fila} className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">
+        <div className="h-9 w-9 shrink-0 animate-pulse rounded-md bg-muted" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="h-3 w-2/5 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-3/5 animate-pulse rounded bg-muted/70" />
+        </div>
+        <div className="hidden h-6 w-20 animate-pulse rounded bg-muted sm:block" />
+      </div>
+    ))}
   </div>
 );
 
