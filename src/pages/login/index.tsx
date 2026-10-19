@@ -13,6 +13,37 @@ import { APP_VERSION } from "@/lib/constants";
 
 type Mode = "login" | "signup";
 
+/**
+ * Los errores de inicio de sesión llegan en inglés: se traducen a un aviso
+ * claro con lo que la persona puede hacer.
+ */
+const authErrorMessage = (message: string, mode: Mode): string => {
+  if (/invalid login credentials/i.test(message)) {
+    return "El correo o la contraseña no son correctos. Revisá que el correo esté bien escrito y tocá el ojo para ver la contraseña.";
+  }
+  if (/email not confirmed/i.test(message)) {
+    return "Todavía no confirmaste tu correo. Abrí el mensaje que te llegó al registrarte y tocá el enlace de confirmación.";
+  }
+  if (/user already registered|already been registered/i.test(message)) {
+    return "Ya existe una cuenta con ese correo. Usá \"Ya tengo cuenta\" para ingresar.";
+  }
+  if (/password should be at least|weak password/i.test(message)) {
+    return "La contraseña es muy corta o muy simple. Usá al menos 6 caracteres.";
+  }
+  if (/rate limit|too many requests|security purposes/i.test(message)) {
+    return "Se hicieron demasiados intentos seguidos. Esperá unos minutos y probá de nuevo.";
+  }
+  if (/email address .* is invalid|invalid email/i.test(message)) {
+    return "El correo no es válido. Revisá cómo está escrito.";
+  }
+  if (/failed to fetch|network/i.test(message)) {
+    return "No pudimos conectarnos. Revisá tu conexión a internet y probá de nuevo.";
+  }
+  return mode === "login"
+    ? "No se pudo iniciar sesión. Probá de nuevo en unos minutos."
+    : "No se pudo crear la cuenta. Probá de nuevo en unos minutos.";
+};
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("login");
@@ -81,9 +112,10 @@ const LoginPage = () => {
         });
       }
     } catch (error) {
+      console.error("[login] error técnico:", error);
       toast({
-        title: "No se pudo completar la operación",
-        description: error instanceof Error ? error.message : "Intentá nuevamente.",
+        title: mode === "login" ? "No se pudo ingresar" : "No se pudo crear la cuenta",
+        description: authErrorMessage(error instanceof Error ? error.message : "", mode),
         variant: "destructive",
       });
     } finally {
