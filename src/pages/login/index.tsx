@@ -21,6 +21,9 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   // Mostrar la contraseña sirve para revisar que se escribió bien.
   const [showPassword, setShowPassword] = useState(false);
+  // Al crear la cuenta se escribe dos veces, para confirmar que quedó bien.
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const passwordsDiffer = mode === "signup" && confirmPassword.length > 0 && confirmPassword !== password;
   const [setupCode, setSetupCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [setupPending, setSetupPending] = useState(false);
@@ -34,6 +37,14 @@ const LoginPage = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (submitting) return;
+    if (mode === "signup" && confirmPassword !== password) {
+      toast({
+        title: "Las contraseñas no coinciden",
+        description: "Escribí la misma contraseña en los dos campos.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       if (mode === "login") {
@@ -182,6 +193,32 @@ const LoginPage = () => {
                 </div>
               </div>
 
+              {mode === "signup" ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirm_password">Repetir contraseña</Label>
+                  <Input
+                    id="confirm_password"
+                    type={showPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Escribila de nuevo"
+                    autoComplete="new-password"
+                    minLength={6}
+                    required
+                    aria-invalid={passwordsDiffer}
+                    aria-describedby={passwordsDiffer ? "confirm_password_error" : undefined}
+                    className={passwordsDiffer ? "border-destructive focus-visible:ring-destructive" : undefined}
+                  />
+                  {passwordsDiffer ? (
+                    <p id="confirm_password_error" role="alert" className="text-xs font-medium text-destructive">
+                      Las contraseñas no coinciden. Revisalas: podés tocar el ojo para verlas.
+                    </p>
+                  ) : confirmPassword.length > 0 ? (
+                    <p className="text-xs text-success">Las contraseñas coinciden.</p>
+                  ) : null}
+                </div>
+              ) : null}
+
               {mode === "signup" && setupPending ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="setup_code">Código de configuración inicial (Propietario)</Label>
@@ -198,7 +235,7 @@ const LoginPage = () => {
                 </div>
               ) : null}
 
-              <Button type="submit" size="xl" className="w-full" disabled={submitting}>
+              <Button type="submit" size="xl" className="w-full" disabled={submitting || passwordsDiffer}>
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : mode === "login" ? (
