@@ -111,9 +111,11 @@ const LoginPage = () => {
         },
       });
       if (error) throw new Error(error.message);
-      // Si el correo ya tenía cuenta, Supabase no crea otra ni devuelve error:
-      // lo reconocemos porque la respuesta llega sin identidades.
-      if (data.user && (data.user.identities ?? []).length === 0) {
+      // Si el correo ya tenía cuenta (y se pide confirmar el correo), Supabase no
+      // crea otra ni devuelve error: responde sin sesión y con la lista de
+      // identidades vacía. Si hay sesión, la cuenta es nueva con seguridad.
+      const identidades = data.user?.identities;
+      if (!data.session && Array.isArray(identidades) && identidades.length === 0) {
         throw new Error("User already registered");
       }
       // La cuenta nueva queda pendiente: no tiene nada que hacer todavía en la app,
