@@ -1,9 +1,19 @@
 import { useState } from "react";
-import { Check, Copy, KeyRound, Plus, ShieldCheck, UserX } from "lucide-react";
+import { Check, Copy, KeyRound, Plus, ShieldCheck, Trash2, UserX } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/app-shell";
 import { ToneBadge } from "@/components/badges";
 import { ErrorState, LoadingState } from "@/components/feedback";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -45,6 +55,8 @@ const UsersPage = () => {
   const [authorize, setAuthorize] = useState<{ profile: Profile; role: AppRole } | null>(null);
   const [temporary, setTemporary] = useState<{ email: string; password: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // Cuenta que se va a eliminar: se pide confirmación antes.
+  const [toDelete, setToDelete] = useState<Profile | null>(null);
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["profiles"] });
@@ -111,6 +123,25 @@ const UsersPage = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    setBusy(true);
+    try {
+      await invokeManageUsers({ action: "delete", user_id: toDelete.id });
+      await refresh();
+      toast({ title: "Cuenta eliminada", description: `Se eliminó la cuenta de ${toDelete.email ?? "la persona"}.` });
+      setToDelete(null);
+    } catch (deleteError) {
+      toast({
+        title: "No se pudo eliminar la cuenta",
+        description: deleteError instanceof Error ? deleteError.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleActive = async (profile: Profile) => {
     setBusy(true);
     try {
@@ -156,7 +187,20 @@ const UsersPage = () => {
               <ShieldCheck className="h-4 w-4" />
               Autorizar
             </Button>
-          ) : profile.role === "owner" ? (
+          ) : null}
+          {profile.role === "pending" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:bg-destructive-soft hover:text-destructive"
+              onClick={() => setToDelete(profile)}
+              disabled={busy}
+            >
+              <Trash2 className="h-4 w-4" />
+              Eliminar
+            </Button>
+          ) : null}
+          {profile.role === "pending" || !profile.active ? null : profile.role === "owner" ? (
             <span className="text-xs text-muted-foreground">Propietario</span>
           ) : (
             <Button size="sm" variant="outline" onClick={() => void handleActive(profile)} disabled={busy}>
@@ -376,6 +420,31 @@ const UsersPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={Boolean(toDelete)} onOpenChange={(open) => (open ? undefined : setToDelete(null))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta cuenta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se elimina la cuenta de <strong>{toDelete?.full_name ?? toDelete?.email}</strong> ({toDelete?.email}). No
+              se puede deshacer: si la persona necesita acceso más adelante, tiene que registrarse de nuevo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={busy}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDelete();
+              }}
+            >
+              Eliminar cuenta
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -452,8 +452,12 @@ export const invokeManageUsers = async (payload: Record<string, unknown>): Promi
     body: payload,
     headers: { "Content-Type": "application/json" },
   });
-  const result = (data ?? {}) as ManageUsersResult;
+  let result = (data ?? {}) as ManageUsersResult;
   if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === "function") {
+      result = ((await context.json().catch(() => ({}))) as ManageUsersResult) ?? {};
+    }
     throw new Error(result.error ?? "No se pudo completar la gestion de usuarios.");
   }
   if (result.error) {
